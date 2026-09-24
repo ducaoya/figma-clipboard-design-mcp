@@ -27,7 +27,7 @@ npm install -g figma-clipboard-design-mcp
 
 ```bash
 # 1. 后台启动（默认 127.0.0.1:8388）
-figma-mcp start
+fcdm start
 
 # 2. 打开网页，从 Figma 复制图层后按 Ctrl+V
 #    → http://127.0.0.1:8388/
@@ -41,11 +41,11 @@ figma-mcp start
 ## CLI
 
 ```bash
-figma-mcp start   [--port 8388] [--host 127.0.0.1]
-figma-mcp run     [同上]        # 前台运行，日志可见
-figma-mcp restart [--port ...]  # 重启（沿用或更新配置）
-figma-mcp status                # 打印网页地址 / MCP 地址 / 缓存状态
-figma-mcp stop                  # 停止
+fcdm start   [--port 8388] [--host 127.0.0.1]
+fcdm run     [同上]        # 前台运行，日志可见
+fcdm restart [--port ...]  # 重启（沿用或更新配置）
+fcdm status                # 打印网页地址 / MCP 地址 / 缓存状态
+fcdm stop                  # 停止
 ```
 
 - `start` 后台分离进程运行，关终端不退出

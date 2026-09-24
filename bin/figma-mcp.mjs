@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// figma-mcp CLI — start / restart / status / stop / run
+// fcdm CLI — start / restart / status / stop / run
 // 后台模式：spawn 分离进程，状态写入 os.tmpdir()/figma-clipboard-mcp/state.json
 import { spawn } from "node:child_process";
 import fs from "node:fs";
@@ -67,15 +67,15 @@ function parseArgs(argv) {
 }
 
 function usage() {
-  console.log(`figma-mcp — Figma 剪贴板解析 + MCP 服务
+  console.log(`fcdm — Figma 剪贴板解析 + MCP 服务
 
 用法:
-  figma-mcp start   [--port 8388] [--host 127.0.0.1]
+  fcdm start   [--port 8388] [--host 127.0.0.1]
                     后台启动服务（分离进程，关终端不退出）
-  figma-mcp run     [同上选项]        前台运行（Ctrl+C 停止，看日志方便）
-  figma-mcp restart [--port ...]      重启（沿用上次或指定配置）
-  figma-mcp status                    查看状态（网页地址 / MCP 地址 / 缓存信息）
-  figma-mcp stop                      停止后台服务
+  fcdm run     [同上选项]        前台运行（Ctrl+C 停止，看日志方便）
+  fcdm restart [--port ...]      重启（沿用上次或指定配置）
+  fcdm status                    查看状态（网页地址 / MCP 地址 / 缓存信息）
+  fcdm stop                      停止后台服务
 
 选项:
   --port, -p     端口号（默认 8388）
@@ -104,7 +104,7 @@ async function cmdStart(opts, { restart = false } = {}) {
     const explicitHost = opts.host !== undefined;
     if (!explicitPort && !explicitHost) {
       console.log(`服务已在运行: http://${prev.host}:${prev.port} (pid ${prev.pid})`);
-      console.log(`如需换端口请用: figma-mcp restart --port <新端口>`);
+      console.log(`如需换端口请用: fcdm restart --port <新端口>`);
       return;
     }
     console.log(`检测到已有实例 (pid ${prev.pid}, 端口 ${prev.port})，将按指定配置另起实例`);
@@ -138,13 +138,13 @@ function printInfo(state) {
   console.log(`  网页:   http://${state.host}:${state.port}/`);
   console.log(`  MCP:    http://${state.host}:${state.port}/mcp        （Streamable HTTP）`);
   console.log(`  健康检查: http://${state.host}:${state.port}/api/health`);
-  console.log(`  停止:   figma-mcp stop | 重启: figma-mcp restart`);
+  console.log(`  停止:   fcdm stop | 重启: fcdm restart`);
 }
 
 async function cmdStatus() {
   const state = readState();
   if (!state) {
-    console.log("状态：未在运行（用 figma-mcp start 启动）");
+    console.log("状态：未在运行（用 fcdm start 启动）");
     return;
   }
   const alive = isAlive(state.pid) && (await probe(state.port, state.host));

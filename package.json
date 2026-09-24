@@ -5,6 +5,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
+    "fcdm": "bin/figma-mcp.mjs",
     "figma-clipboard-mcp": "bin/figma-mcp.mjs"
   },
   "files": [
