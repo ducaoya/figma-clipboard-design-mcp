@@ -134,7 +134,7 @@ async function cmdStart(opts, { restart = false } = {}) {
 }
 
 function printInfo(state) {
-  console.log(`✔ figma-clipboard-mcp 已启动 (pid ${state.pid})`);
+  console.log(`✔ fcdm 已启动 (pid ${state.pid})`);
   console.log(`  网页:   http://${state.host}:${state.port}/`);
   console.log(`  MCP:    http://${state.host}:${state.port}/mcp        （Streamable HTTP）`);
   console.log(`  健康检查: http://${state.host}:${state.port}/api/health`);
