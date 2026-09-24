@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>figma-clipboard-mcp</title>
+<style>
+  :root {
+    --bg: #1e1e1e; --panel: #252525; --panel-2: #2c2c2c; --border: #3a3a3a;
+    --text: #d4d4d4; --muted: #8a8a8a;
+    --accent: #0d99ff; --figmeta: #f5a623; --figdata: #0acf83;
+    --warn: #f24822; --purple: #b18cff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  header { padding: 16px 24px 0; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 19px; margin: 0; }
+  h1 .beta { color: var(--accent); font-size: 12px; vertical-align: middle; margin-left: 8px; }
+  .sub { color: var(--muted); font-size: 12px; }
+
+  nav.tabs {
+    display: flex; gap: 4px; margin: 14px 24px 0;
+    border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  nav.tabs .tab {
+    padding: 8px 16px; font-size: 13px; cursor: pointer; user-select: none;
+    color: var(--muted); border: 1px solid transparent; border-bottom: none;
+    border-radius: 8px 8px 0 0; position: relative; top: 1px;
+  }
+  nav.tabs .tab:hover { color: var(--text); }
+  nav.tabs .tab.active { background: var(--panel); border-color: var(--border); color: var(--accent); font-weight: 600; }
+  nav.tabs .tab .badge {
+    font-size: 10px; margin-left: 6px; padding: 0 6px; border-radius: 8px;
+    background: var(--panel-2); border: 1px solid var(--border);
+  }
+  nav.tabs .tab.active .badge { color: var(--figdata); border-color: var(--figdata); }
+
+  main { padding: 16px 24px 48px; }
+  .tab-page { display: none; }
+  .tab-page.active { display: block; }
+
+  #paste-zone {
+    min-height: 96px; border: 2px dashed var(--border); border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 15px; cursor: text;
+    outline: none; transition: border-color .15s; padding: 16px; text-align: center;
+  }
+  #paste-zone:focus, #paste-zone:hover { border-color: var(--accent); color: var(--text); }
+  kbd { background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: Consolas, monospace; }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    margin-top: 14px; overflow: hidden;
+  }
+  .panel > h2 {
+    margin: 0; padding: 9px 14px; font-size: 13px; font-weight: 600;
+    background: var(--panel-2); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .panel > h2 .tag { font-size: 11px; font-weight: 400; color: var(--muted); font-family: Consolas, monospace; }
+  .panel > h2 .spacer { flex: 1; }
+  .panel-body { padding: 12px 14px; }
+  .hidden { display: none; }
+
+  pre {
+    margin: 0; padding: 12px; background: #1a1a1a; border-radius: 6px;
+    font-family: Consolas, "Courier New", monospace; font-size: 12px;
+    white-space: pre-wrap; word-break: break-all; max-height: 340px; overflow: auto;
+  }
+  .marker-figmeta { background: rgba(245,166,35,.18); color: var(--figmeta); border-radius: 3px; }
+  .marker-figdata { background: rgba(10,207,131,.15); color: var(--figdata); border-radius: 3px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; }
+  td.mono, .mono { font-family: Consolas, monospace; }
+  tr:last-child td { border-bottom: none; }
+
+  .marker-cards { display: flex; gap: 12px; flex-wrap: wrap; }
+  .marker-card {
+    flex: 1; min-width: 240px; background: #1a1a1a; border-radius: 8px;
+    border: 1px solid var(--border); padding: 12px 14px;
+  }
+  .marker-card h3 { margin: 0 0 8px; font-size: 13px; }
+  .marker-card.meta h3 { color: var(--figmeta); }
+  .marker-card.data h3 { color: var(--figdata); }
+  .marker-card .stat { font-size: 12px; color: var(--muted); }
+  .marker-card .stat b { color: var(--text); font-family: Consolas, monospace; }
+  .marker-card details { margin-top: 8px; }
+  .marker-card summary { cursor: pointer; font-size: 12px; color: var(--accent); }
+  .marker-card pre { max-height: 140px; margin-top: 6px; }
+
+  .j-key { color: var(--accent); }
+  .j-str { color: var(--figdata); }
+  .j-num { color: var(--figmeta); }
+  .j-bool { color: var(--purple); }
+
+  .hexdump { max-height: 360px; overflow: auto; }
+  .hx-off { color: var(--muted); }
+  .hx-ascii { color: var(--muted); }
+  .b-magic { background: rgba(10,207,131,.25); color: var(--figdata); font-weight: 700; }
+  .b-ver   { background: rgba(13,153,255,.25); color: var(--accent); font-weight: 700; }
+  .b-len   { background: rgba(245,166,35,.25); color: var(--figmeta); font-weight: 700; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; color: var(--muted); }
+  .legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+
+  button {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 12px; font-size: 12px; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+
+  .status { margin-top: 12px; font-size: 13px; }
+  .status.ok { color: var(--figdata); }
+  .status.no { color: var(--warn); }
+  .note { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .ok-text { color: var(--figdata); }
+  .warn-text { color: var(--warn); }
+
+  .pipeline { list-style: none; margin: 0; padding: 0; }
+  .pipeline li {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 7px 4px; border-bottom: 1px dashed var(--border); font-size: 13px;
+  }
+  .pipeline li:last-child { border-bottom: none; }
+  .pipeline .st { width: 22px; text-align: center; flex: none; }
+  .pipeline .st.ok { color: var(--figdata); }
+  .pipeline .st.no { color: var(--warn); }
+  .pipeline .st.pend { color: var(--muted); }
+  .pipeline .detail { color: var(--muted); font-size: 12px; margin-left: auto; text-align: right; }
+
+  /* MCP 面板 */
+  .mcp-url {
+    font-family: Consolas, monospace; font-size: 13px; color: var(--figdata);
+    background: #1a1a1a; border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 12px; display: inline-block; margin: 4px 0;
+  }
+  .tool-list { display: flex; flex-direction: column; gap: 6px; }
+  .tool-item { display: flex; gap: 10px; align-items: baseline; font-size: 12px; }
+  .tool-item .tname { font-family: Consolas, monospace; color: var(--accent); min-width: 190px; }
+  .tool-item .tdesc { color: var(--muted); }
+  code.inline {
+    font-family: Consolas, monospace; font-size: 12px; background: #1a1a1a;
+    border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px;
+  }
+
+  .tree-view { max-height: 640px; overflow: auto; }
+  .tv-row { display: flex; align-items: baseline; gap: 8px; padding: 2px 6px; border-radius: 4px; font-size: 12px; white-space: nowrap; }
+  .tv-row:hover { background: rgba(13,153,255,.08); }
+  .tv-type { font-family: Consolas, monospace; font-size: 11px; width: 150px; flex: none; text-align: right; }
+  .tv-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; max-width: 420px; }
+  .tv-size { color: var(--muted); font-size: 11px; font-family: Consolas, monospace; }
+  .tv-count { color: var(--muted); font-size: 10px; border: 1px solid var(--border); border-radius: 8px; padding: 0 6px; }
+  .tv-trunc { color: var(--muted); font-style: italic; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>figma-clipboard-mcp<span class="beta" id="ver-badge">v?</span></h1>
+  <div class="sub">Figma 复制 → 本页 Ctrl+V → 数据自动进入缓存，AI 通过 MCP 读取</div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <div class="tab active" data-tab="overview">总览<span class="badge" id="badge-overview">—</span></div>
+  <div class="tab" data-tab="mcp">MCP 服务<span class="badge" id="badge-mcp">—</span></div>
+  <div class="tab" data-tab="step1">Step 1 · 原始数据</div>
+  <div class="tab" data-tab="step2">Step 2 · base64<span class="badge" id="badge-step2">—</span></div>
+  <div class="tab" data-tab="step3">Step 3 · 解压<span class="badge" id="badge-step3">—</span></div>
+  <div class="tab" data-tab="step4">Step 4 · Kiwi<span class="badge" id="badge-step4">—</span></div>
+  <div class="tab" data-tab="step5">Step 5 · 节点树<span class="badge" id="badge-step5">—</span></div>
+</nav>
+
+<main>
+  <!-- ============ 总览 ============ -->
+  <section class="tab-page active" id="page-overview">
+    <div id="paste-zone" contenteditable="true" spellcheck="false">
+      <div>点击此处获得焦点，然后按 <kbd>Ctrl</kbd>+<kbd>V</kbd> 粘贴 Figma 复制的内容</div>
+    </div>
+    <div id="status" class="status hidden"></div>
+
+    <div class="panel">
+      <h2>解析流水线<span class="tag">pipeline</span></h2>
+      <div class="panel-body">
+        <ul class="pipeline" id="pipeline"></ul>
+        <div class="note" id="log-endpoint-note">日志上报：未连接</div>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="panel-image">
+      <h2>image/png 预览<span class="tag">位图快照</span></h2>
+      <div class="panel-body"><img id="image-preview" style="max-width:100%;border-radius:6px" alt="剪贴板图片预览"></div>
+    </div>
+  </section>
+
+  <!-- ============ MCP 服务 ============ -->
+  <section class="tab-page" id="page-mcp">
+    <div class="panel">
+      <h2>连接信息<span class="tag">AI 客户端接入点</span>
+        <span class="spacer"></span>
+        <button id="btn-copy-mcp">复制 MCP 地址</button>
+      </h2>
+      <div class="panel-body">
+        <div class="stat" style="font-size:12px;color:var(--muted)">MCP 端点（Streamable HTTP）</div>
+        <div class="mcp-url" id="mcp-url">—</div>
+        <div class="stat" style="font-size:12px;color:var(--muted);margin-top:8px">
+          服务版本：<b id="mcp-ver" class="mono">—</b>
+          · 监听：<b class="mono ok-text">仅本机（127.0.0.1）</b>
+        </div>
+        <div class="note">服务仅监听本机回环地址，外部机器无法访问。</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>客户端配置示例<span class="tag">Claude Code / Cursor 等标准 MCP 客户端</span></h2>
+      <div class="panel-body">
+        <pre id="mcp-config-pre"></pre>
+        <div class="note">服务仅监听本机，AI 客户端需与本服务在同一台机器上运行。</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>可用工具<span class="tag">tools/list</span></h2>
+      <div class="panel-body"><div class="tool-list" id="mcp-tools"></div></div>
+    </div>
+
+    <div class="panel">
+      <h2>缓存状态<span class="tag">仅保留最近一次粘贴</span>
+        <span class="spacer"></span>
+        <button id="btn-refresh-cache">刷新</button>
+      </h2>
+      <div class="panel-body">
+        <div class="marker-cards">
+          <div class="marker-card data">
+            <h3>当前缓存</h3>
+            <div class="stat">状态：<b id="cache-has">—</b></div>
+            <div class="stat">节点数：<b id="cache-nodes">—</b></div>
+            <div class="stat">大小：<b id="cache-bytes">—</b></div>
+            <div class="stat">保存时间：<b id="cache-time">—</b></div>
+            <div class="stat">来源 fileKey：<b id="cache-filekey">—</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Step 1 ============ -->
+  <section class="tab-page" id="page-step1">
+    <div class="panel">
+      <h2>剪贴板格式清单（flavors）<span class="tag">e.clipboardData.items</span></h2>
+      <div class="panel-body">
+        <table>
+          <thead><tr><th>#</th><th>kind</th><th>type（MIME）</th><th>大小</th><th>说明</th></tr></thead>
+          <tbody id="flavors-body"></tbody>
+        </table>
+        <div class="note" id="types-note"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>text/plain<span class="tag">记事本只能看到这一份</span></h2>
+      <div class="panel-body"><pre id="plain-pre"></pre></div>
+    </div>
+    <div class="panel">
+      <h2>text/html 原文<span class="tag">Figma 私有载荷的载体</span>
+        <span class="spacer"></span>
+        <button id="btn-copy">复制原文</button>
+        <button id="btn-download">下载 .html</button>
+      </h2>
+      <div class="panel-body"><pre id="html-pre"></pre></div>
+    </div>
+    <div class="panel">
+      <h2>Figma 私有标记定位<span class="tag">figmeta / figma</span></h2>
+      <div class="panel-body"><div class="marker-cards" id="marker-cards"></div></div>
+    </div>
+  </section>
+
+  <!-- ============ Step 2 ============ -->
+  <section class="tab-page" id="page-step2">
+    <div class="panel">
+      <h2>figmeta 解码结果<span class="tag">base64 → UTF-8 JSON</span></h2>
+      <div class="panel-body">
+        <pre id="meta-json-pre"></pre>
+        <div class="note">fileKey = 来源文件；pasteID = 本次复制的递增编号。</div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>figma 二进制结构解析<span class="tag">base64 → fig-kiwi 归档</span></h2>
+      <div class="panel-body">
+        <div class="marker-cards">
+          <div class="marker-card data">
+            <h3>归档头</h3>
+            <div class="stat">base64 长度：<b id="bin-b64-len">—</b> 字符</div>
+            <div class="stat">解码后实际：<b id="bin-bin-len">—</b></div>
+            <div class="stat">魔数：<b class="mono" id="bin-magic">—</b></div>
+            <div class="stat">格式版本（u32 LE）：<b class="mono" id="bin-version">—</b></div>
+          </div>
+        </div>
+        <h3 style="font-size:13px;margin:14px 0 6px;">分块表</h3>
+        <table>
+          <thead><tr><th>#</th><th>偏移</th><th>长度</th><th>前 16 字节（hex）</th><th>推测内容</th></tr></thead>
+          <tbody id="chunks-body"></tbody>
+        </table>
+        <h3 style="font-size:13px;margin:14px 0 6px;">Hex Dump（前 320 字节）</h3>
+        <pre id="hexdump-pre" class="hexdump"></pre>
+        <div class="legend">
+          <span><span class="sw b-magic"></span>魔数 "fig-kiwi"</span>
+          <span><span class="sw b-ver"></span>版本号 u32 LE</span>
+          <span><span class="sw b-len"></span>分块长度前缀 u32 LE</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Step 3 ============ -->
+  <section class="tab-page" id="page-step3">
+    <div class="panel">
+      <h2>解压结果<span class="tag">魔数分派 + 全格式降级（zstd / deflate-raw / deflate）</span></h2>
+      <div class="panel-body">
+        <table>
+          <thead><tr><th>#</th><th>推测内容</th><th>压缩后</th><th>解压后</th><th>压缩率</th><th>实际格式</th><th>前 16 字节</th></tr></thead>
+          <tbody id="inflate-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>第 0 块 · Kiwi Schema 字符串提取<span class="tag">格式定义的"词汇表"</span></h2>
+      <div class="panel-body">
+        <div class="stat" style="font-size:12px;color:var(--muted)">提取到 <b class="mono" id="schema-str-count" style="color:var(--text)">—</b> 个可读字符串（显示前 300 个）</div>
+        <div id="schema-strings" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>第 1 块 · 节点数据预览<span class="tag">Kiwi 编码的 Message</span></h2>
+      <div class="panel-body"><pre id="data-head-pre" class="hexdump"></pre></div>
+    </div>
+  </section>
+
+  <!-- ============ Step 4 ============ -->
+  <section class="tab-page" id="page-step4">
+    <div class="panel">
+      <h2>Kiwi Schema 统计<span class="tag">decodeBinarySchema</span></h2>
+      <div class="panel-body">
+        <div class="marker-cards">
+          <div class="marker-card"><h3>定义总数</h3><div class="stat"><b id="kiwi-defs" style="font-size:20px">—</b></div></div>
+          <div class="marker-card"><h3>节点数</h3><div class="stat"><b id="kiwi-nodes" style="font-size:20px">—</b></div></div>
+          <div class="marker-card"><h3>Blobs</h3><div class="stat"><b id="kiwi-blobs" style="font-size:20px">—</b></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Message 顶层字段<span class="tag">NODE_CHANGES</span></h2>
+      <div class="panel-body"><table><thead><tr><th>字段</th><th>值</th></tr></thead><tbody id="kiwi-fields"></tbody></table></div>
+    </div>
+    <div class="panel">
+      <h2>节点类型分布<span class="tag">nodeChanges[].type</span></h2>
+      <div class="panel-body"><div id="kiwi-typehist" style="display:flex;flex-wrap:wrap;gap:6px"></div></div>
+    </div>
+  </section>
+
+  <!-- ============ Step 5 ============ -->
+  <section class="tab-page" id="page-step5">
+    <div class="panel">
+      <h2>节点树<span class="tag">由 parentIndex 重建 · <span id="tree-stats">—</span></span></h2>
+      <div class="panel-body"><div id="tree-view" class="tree-view"></div></div>
+    </div>
+  </section>
+</main>
+
+<script src="/vendor/fzstd.js"></script>
+<script src="/vendor/kiwi.js"></script>
+<script>
+"use strict";
+
+/* ============================================================
+ * figma-clipboard-mcp 网页端
+ * 浏览器完成全部解码（Step1-5），解码结果 POST /cache 供 MCP 使用
+ * 服务端零解码逻辑，只做缓存 + MCP
+ * ==========================================================*/
+
+const $ = (id) => document.getElementById(id);
+const pasteZone = $("paste-zone");
+
+/* ---------- 日志上报 ---------- */
+const Logger = (() => {
+  const queue = [];
+  let timer = null, connected = false;
+  function send() {
+    if (!queue.length) return;
+    const batch = queue.splice(0);
+    fetch("/log", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(batch) })
+      .then(() => {
+        if (!connected) {
+          connected = true;
+          const note = $("log-endpoint-note");
+          note.textContent = "日志上报：已连接（服务端 logs/page.log）";
+          note.style.color = "var(--figdata)";
+        }
+      })
+      .catch(() => {});
+  }
+  function log(level, tag, message, data) {
+    queue.push({ level, tag, message: String(message), data: data ?? null });
+    if (!timer) timer = setTimeout(() => { timer = null; send(); }, 300);
+  }
+  return {
+    info: (t, m, d) => log("info", t, m, d),
+    warn: (t, m, d) => log("warn", t, m, d),
+    error: (t, m, d) => log("error", t, m, d),
+    flush: send,
+  };
+})();
+
+/* ---------- Tab 切换 ---------- */
+let activeTab = "overview";
+$("tabs").addEventListener("click", (e) => {
+  const tab = e.target.closest(".tab");
+  if (!tab) return;
+  activeTab = tab.dataset.tab;
+  document.querySelectorAll("nav.tabs .tab").forEach(t => t.classList.toggle("active", t.dataset.tab === activeTab));
+  document.querySelectorAll(".tab-page").forEach(p => p.classList.remove("active"));
+  $("page-" + activeTab).classList.add("active");
+  renderActiveTab();
+});
+function renderActiveTab() {
+  if (!state.pasted) return;
+  const renderers = {
+    overview: renderOverview, mcp: renderMcp, step1: renderStep1,
+    step2: renderStep2, step3: renderStep3, step4: renderStep4, step5: renderStep5,
+  };
+  renderers[activeTab] && renderers[activeTab]();
+}
+
+/* ---------- 工具函数 ---------- */
+function escapeHtml(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function fmtBytes(n) {
+  if (n < 1024) return n + " B";
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+  return (n / 1024 / 1024).toFixed(2) + " MB";
+}
+function byteLength(s) { return new TextEncoder().encode(s).length; }
+function b64ToBytes(b64) {
+  const bin = atob(b64.replace(/\s+/g, ""));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+function toHex(bytes, sep) { return Array.from(bytes, b => b.toString(16).padStart(2, "0")).join(sep || ""); }
+function readU32LE(bytes, off) { return (bytes[off] | (bytes[off+1] << 8) | (bytes[off+2] << 16) | (bytes[off+3] << 24)) >>> 0; }
+function extractPayload(html, key) {
+  const startMark = "(" + key + ")";
+  const endMark = "(/" + key + ")";
+  const start = html.indexOf(startMark);
+  if (start === -1) return null;
+  const from = start + startMark.length;
+  const end = html.indexOf(endMark, from);
+  if (end === -1) return null;
+  return html.slice(from, end).trim() || null;
+}
+function parseFigKiwiArchive(bytes) {
+  const magic = String.fromCharCode(...bytes.slice(0, 8));
+  if (magic !== "fig-kiwi") throw new Error('魔数不匹配：期望 "fig-kiwi"，实际 "' + magic + '"');
+  const version = readU32LE(bytes, 8);
+  const chunks = [];
+  let off = 12;
+  while (off + 4 <= bytes.length) {
+    const len = readU32LE(bytes, off);
+    const start = off + 4;
+    if (start + len > bytes.length) throw new Error("分块长度越界");
+    chunks.push({ lengthFieldOffset: off, dataOffset: start, length: len, bytes: bytes.slice(start, start + len) });
+    off = start + len;
+  }
+  return { magic, version, chunks };
+}
+function highlightJson(obj) {
+  const json = escapeHtml(JSON.stringify(obj, null, 2));
+  return json
+    .replace(/(&quot;[^&]*?&quot;)(\s*:)/g, '<span class="j-key">$1</span>$2')
+    .replace(/:\s(&quot;[^&]*?&quot;)/g, ': <span class="j-str">$1</span>')
+    .replace(/:\s(-?\d+\.?\d*(e[+-]?\d+)?)/gi, ': <span class="j-num">$1</span>')
+    .replace(/:\s(true|false|null)/g, ': <span class="j-bool">$1</span>');
+}
+function hexDumpAnnotated(bytes, maxBytes, archive) {
+  const n = Math.min(bytes.length, maxBytes);
+  const ranges = [{ start: 0, end: 8, cls: "b-magic" }, { start: 8, end: 12, cls: "b-ver" }];
+  for (const c of archive.chunks || []) {
+    if (c.lengthFieldOffset < n) ranges.push({ start: c.lengthFieldOffset, end: c.lengthFieldOffset + 4, cls: "b-len" });
+  }
+  const clsAt = (i) => { for (const r of ranges) if (i >= r.start && i < r.end) return r.cls; return ""; };
+  const lines = [];
+  for (let row = 0; row < n; row += 16) {
+    let hexPart = "", asciiPart = "";
+    for (let i = row; i < row + 16; i++) {
+      if (i < n) {
+        const cls = clsAt(i);
+        const hx = bytes[i].toString(16).padStart(2, "0");
+        hexPart += cls ? '<span class="' + cls + '">' + hx + "</span> " : hx + " ";
+        const ch = bytes[i] >= 32 && bytes[i] < 127 ? String.fromCharCode(bytes[i]) : "·";
+        asciiPart += cls ? '<span class="' + cls + '">' + escapeHtml(ch) + "</span>" : escapeHtml(ch);
+      } else { hexPart += "   "; asciiPart += " "; }
+      if (i - row === 7) hexPart += " ";
+    }
+    lines.push('<span class="hx-off">' + row.toString(16).padStart(6, "0") + "</span>  " + hexPart +
+      ' <span class="hx-ascii">|' + asciiPart + "|</span>");
+  }
+  if (bytes.length > n) lines.push('<span class="hx-off">… 共 ' + bytes.length.toLocaleString() + " 字节</span>");
+  return lines.join("\n");
+}
+async function inflateAuto(bytes) {
+  const attempts = [];
+  const tryFormats = [];
+  if (bytes[0] === 0x28 && bytes[1] === 0xb5 && bytes[2] === 0x2f && bytes[3] === 0xfd) tryFormats.push("zstd");
+  tryFormats.push("deflate-raw", "deflate", "zstd");
+  for (const format of tryFormats) {
+    try {
+      if (format === "zstd") {
+        if (typeof fzstd === "undefined") throw new Error("fzstd 未加载");
+        return { bytes: fzstd.decompress(bytes), format };
+      }
+      const ds = new DecompressionStream(format);
+      const out = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer());
+      return { bytes: out, format };
+    } catch (err) { attempts.push(format + ": " + err.message); }
+  }
+  throw new Error("全部格式失败 —— " + attempts.join(" | "));
+}
+function extractPrintableStrings(bytes, minLen) {
+  const out = []; let cur = [];
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i];
+    if (b >= 32 && b < 127) cur.push(String.fromCharCode(b));
+    else { if (cur.length >= minLen) out.push(cur.join("")); cur = []; }
+  }
+  if (cur.length >= minLen) out.push(cur.join(""));
+  return out;
+}
+
+/* ---------- 全局状态 ---------- */
+const state = {
+  pasted: false, flavors: [], typesNote: "", plain: "", html: "",
+  markers: [], hasImage: false, imageUrl: "",
+  metaObj: null, archive: null, inflate: null, schemaStrings: [],
+  kiwi: null, tree: null, cacheUploaded: false,
+  steps: {},
+};
+
+/* ---------- 节点投影：解码结果 → 缓存友好结构（剥离大二进制） ---------- */
+
+const guidKey = (g) => (g ? g.sessionID + ":" + g.localID : null);
+const num = (v) => (typeof v === "bigint" ? Number(v) : v);
+
+function projectNode(n) {
+  const out = {
+    guid: guidKey(n.guid),
+    parent: n.parentIndex ? guidKey(n.parentIndex.guid) : null,
+    type: n.type,
+    name: n.name || "",
+    visible: n.visible !== false,
+    opacity: num(n.opacity),
+  };
+  if (n.size) out.size = { x: num(n.size.x), y: num(n.size.y) };
+  if (n.transform) {
+    out.transform = [n.transform.m00, n.transform.m01, n.transform.m02, n.transform.m10, n.transform.m11, n.transform.m12].map(num);
+  }
+  if (n.fillPaints && n.fillPaints.length) out.fills = n.fillPaints;
+  if (n.strokePaints && n.strokePaints.length) out.strokes = n.strokePaints;
+  if (n.effects && n.effects.length) out.effects = n.effects;
+  if (n.strokeWeight != null) out.strokeWeight = num(n.strokeWeight);
+  if (n.horizontalConstraint) out.constraint = { h: n.horizontalConstraint, v: n.verticalConstraint };
+  if (n.cornerRadius != null) out.cornerRadius = num(n.cornerRadius);
+  if (n.rectangleCornerRadii) out.cornerRadii = n.rectangleCornerRadii.map(num);
+  if (n.type === "TEXT" && n.textData) {
+    out.text = n.textData.characters || "";
+    if (n.fontSize != null) out.fontSize = num(n.fontSize);
+    if (n.fontName && n.fontName.family) out.fontName = n.fontName.family + " " + (n.fontName.style || "");
+    if (n.textData.lines && n.textData.lines.length) {
+      // 行信息兜底排版差异（每行的字符范围）
+      out.textLines = n.textData.lines.map(l => ({ start: num(l.start), end: num(l.end), key: l.key }));
+    }
+  }
+  if (n.vectorData && n.vectorData.vectorNetworkBlob != null) {
+    out.vectorBlobIndex = num(n.vectorData.vectorNetworkBlob); // blob 索引，二进制不缓存
+  }
+  if (n.stackMode && n.stackMode !== "NONE") {
+    out.autoLayout = { mode: n.stackMode, align: n.stackAlign, counterAlign: n.stackCounterAlign,
+      justify: n.stackJustify, padding: n.stackPadding, itemSpacing: num(n.stackItemSpacing) };
+  }
+  return out;
+}
+
+/* ---------- 核心：paste 事件 ---------- */
+
+document.addEventListener("paste", async (e) => {
+  e.preventDefault();
+  const cd = e.clipboardData;
+  if (!cd) return;
+
+  Logger.info("paste", "收到粘贴事件", { types: Array.from(cd.types) });
+  resetState();
+
+  /* 捕获 */
+  const items = Array.from(cd.items);
+  let hasImage = false;
+  items.forEach((item) => {
+    let size = "—", desc = "";
+    if (item.kind === "string") {
+      const data = cd.getData(item.type);
+      size = fmtBytes(byteLength(data)) + " / " + data.length + " 字符";
+      if (item.type === "text/plain") desc = "纯文本投影";
+      else if (item.type === "text/html") desc = "★ Figma 私有载荷";
+    } else if (item.kind === "file") {
+      const f = item.getAsFile();
+      size = f ? fmtBytes(f.size) : "—";
+      if (item.type.startsWith("image/")) { desc = "位图快照"; hasImage = true; }
+    }
+    state.flavors.push({ kind: item.kind, type: item.type, size, desc });
+  });
+  state.typesNote = "顶层 types: [" + Array.from(cd.types).join(", ") + "]";
+  state.plain = cd.getData("text/plain");
+  state.html = cd.getData("text/html");
+  state.hasImage = hasImage;
+  if (hasImage) {
+    const f = (items.find(it => it.type.startsWith("image/")) || {}).getAsFile?.();
+    if (f) state.imageUrl = URL.createObjectURL(f);
+  }
+  state.steps["捕获"] = { ok: true, detail: state.flavors.length + " 个格式" };
+
+  /* Step 1 */
+  const html = state.html;
+  const isFigma = html && ["(figmeta)", "(/figmeta)", "(figma)", "(/figma)"].every(m => html.includes(m));
+  if (html) {
+    for (const def of [
+      { key: "figmeta", label: "figmeta · 元数据", cls: "meta" },
+      { key: "figma", label: "figma · 节点树数据", cls: "data" },
+    ]) {
+      const payload = extractPayload(html, def.key);
+      if (payload) state.markers.push({ key: def.key, label: def.label, cls: def.cls, payload });
+    }
+    state.steps["Step1 标记定位"] = {
+      ok: state.markers.length > 0,
+      detail: state.markers.map(m => m.key + " " + fmtBytes(m.payload.length)).join("，") || "未找到标记",
+    };
+  }
+
+  /* Step 2 */
+  if (isFigma) {
+    try {
+      const metaB64 = extractPayload(html, "figmeta");
+      if (metaB64) state.metaObj = JSON.parse(new TextDecoder("utf-8").decode(b64ToBytes(metaB64)));
+      const figB64 = extractPayload(html, "figma");
+      if (figB64) {
+        state.figB64 = figB64;
+        state.archive = parseFigKiwiArchive(b64ToBytes(figB64));
+      }
+      state.steps["Step2 base64解码"] = {
+        ok: true,
+        detail: "figmeta ✓ · fig-kiwi v" + state.archive.version + "，" + state.archive.chunks.length + " 块",
+      };
+      Logger.info("step2", "base64 解码成功", { meta: state.metaObj, version: state.archive.version, chunks: state.archive.chunks.map(c => c.length) });
+    } catch (err) {
+      state.steps["Step2 base64解码"] = { ok: false, detail: err.message };
+      Logger.error("step2", "解码失败", { error: err.message });
+    }
+  } else {
+    state.steps["Step1 标记定位"] = { ok: false, detail: "未检测到 Figma 标记" };
+  }
+
+  /* Step 3 */
+  if (state.archive) {
+    try {
+      state.inflate = [];
+      for (let i = 0; i < state.archive.chunks.length; i++) {
+        const c = state.archive.chunks[i];
+        const { bytes: out, format } = await inflateAuto(c.bytes);
+        state.inflate.push({ idx: i, compressed: c.length, decompressed: out.length,
+          ratio: (out.length / c.length).toFixed(2) + "×", format, headHex: toHex(out.slice(0, 16), " "), raw: out });
+        if (i === 0) state.schemaStrings = extractPrintableStrings(out, 4);
+      }
+      state.steps["Step3 解压"] = {
+        ok: true,
+        detail: state.inflate.map(r => "#" + r.idx + " " + r.format + " " + fmtBytes(r.decompressed)).join("，"),
+      };
+      Logger.info("step3", "解压成功", state.inflate.map(r => ({ format: r.format, decompressed: r.decompressed })));
+    } catch (err) {
+      state.steps["Step3 解压"] = { ok: false, detail: err.message };
+      Logger.error("step3", "解压失败", { error: err.message });
+    }
+  }
+
+  /* Step 4 + 5 */
+  if (state.inflate && state.inflate.length >= 2) {
+    try {
+      const schema = KiwiSchema.decodeBinarySchema(state.inflate[0].raw);
+      const compiled = KiwiSchema.compileSchema(schema);
+      const message = compiled.decodeMessage(state.inflate[1].raw);
+      const hist = {};
+      const nodes = [];
+      for (const n of message.nodeChanges) {
+        if (n.phase === "REMOVED") continue;
+        hist[n.type] = (hist[n.type] || 0) + 1;
+        nodes.push(projectNode(n));
+      }
+      state.kiwi = {
+        defs: schema.definitions.length,
+        message, nodes,
+        nodeCount: nodes.length,
+        blobCount: message.blobs ? message.blobs.length : 0,
+        typeHist: hist,
+      };
+      state.steps["Step4 Kiwi反序列化"] = { ok: true, detail: schema.definitions.length + " 定义 · " + nodes.length + " 节点" };
+      Logger.info("step4", "Kiwi 反序列化成功", { defs: schema.definitions.length, nodes: nodes.length, blobs: state.kiwi.blobCount });
+
+      // 树构建
+      const byGuid = new Map(nodes.map(n => [n.guid, n]));
+      const children = new Map();
+      const roots = [];
+      for (const n of nodes) {
+        if (n.parent && byGuid.has(n.parent)) {
+          if (!children.has(n.parent)) children.set(n.parent, []);
+          children.get(n.parent).push(n);
+        } else roots.push(n);
+      }
+      state.tree = { nodes: byGuid, children, roots, nodeCount: nodes.length };
+      state.steps["Step5 节点树"] = { ok: true, detail: nodes.length + " 节点 · " + roots.length + " 根" };
+      Logger.info("step5", "树构建成功", { nodes: nodes.length, roots: roots.length });
+    } catch (err) {
+      const which = state.kiwi ? "Step5 节点树" : "Step4 Kiwi反序列化";
+      state.steps[which] = { ok: false, detail: err.message };
+      Logger.error(which, "失败", { error: err.message, stack: err.stack });
+    }
+  }
+
+  /* 上报缓存（服务端只存这一份） */
+  if (state.kiwi && state.kiwi.nodes.length) {
+    try {
+      const res = await fetch("/cache", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          meta: state.metaObj,
+          savedAt: new Date().toISOString(),
+          nodes: state.kiwi.nodes,
+        }),
+      });
+      const r = await res.json();
+      state.cacheUploaded = !!r.ok;
+      state.steps["缓存上报"] = { ok: !!r.ok, detail: r.ok ? r.nodeCount + " 节点已进入 MCP 缓存" : "上报失败" };
+      Logger.info("cache", "缓存上报完成", r);
+    } catch (err) {
+      state.steps["缓存上报"] = { ok: false, detail: err.message };
+      Logger.error("cache", "缓存上报失败", { error: err.message });
+    }
+  }
+
+  state.pasted = true;
+  const status = $("status");
+  status.classList.remove("hidden");
+  if (state.cacheUploaded) {
+    status.className = "status ok";
+    status.textContent = "✔ 解析完成，已进入缓存 —— AI 现在可以通过 MCP 读取这份数据了";
+  } else if (isFigma) {
+    status.className = "status no";
+    status.textContent = "⚠ 解析完成但缓存上报失败 —— 查看 Step 面板定位问题";
+  } else {
+    status.className = "status no";
+    status.textContent = "✘ 未检测到 Figma 标记 —— 请从 Figma 画布复制后粘贴";
+  }
+
+  renderActiveTab();
+  Logger.flush();
+});
+
+/* ---------- 渲染：总览 ---------- */
+
+function renderOverview() {
+  const order = ["捕获", "Step1 标记定位", "Step2 base64解码", "Step3 解压", "Step4 Kiwi反序列化", "Step5 节点树", "缓存上报"];
+  const ul = $("pipeline");
+  ul.innerHTML = "";
+  for (const name of order) {
+    const st = state.steps[name];
+    const li = document.createElement("li");
+    const icon = !st ? '<span class="st pend">—</span>' : st.ok ? '<span class="st ok">✓</span>' : '<span class="st no">✗</span>';
+    const detail = st ? '<span class="detail">' + escapeHtml(st.detail) + "</span>" : '<span class="detail">待粘贴</span>';
+    li.innerHTML = icon + "<span>" + name + "</span>" + detail;
+    ul.appendChild(li);
+  }
+  $("badge-overview").textContent = state.pasted ? (state.cacheUploaded ? "✓" : "✗") : "—";
+  for (const [id, key] of [["badge-step2", "Step2 base64解码"], ["badge-step3", "Step3 解压"], ["badge-step4", "Step4 Kiwi反序列化"], ["badge-step5", "Step5 节点树"]]) {
+    const st = state.steps[key];
+    $(id).textContent = !st ? "—" : st.ok ? "✓" : "✗";
+  }
+  if (state.hasImage && state.imageUrl) {
+    $("image-preview").src = state.imageUrl;
+    $("panel-image").classList.remove("hidden");
+  }
+}
+
+/* ---------- 渲染：MCP ---------- */
+
+async function renderMcp() {
+  try {
+    const health = await (await fetch("/api/health")).json();
+    $("ver-badge").textContent = "v" + health.version;
+    $("mcp-ver").textContent = health.version;
+    const mcpUrl = location.origin + "/mcp";
+    $("mcp-url").textContent = mcpUrl;
+    $("mcp-config-pre").textContent = JSON.stringify({
+      mcpServers: {
+        "figma-clipboard": { url: mcpUrl },
+      },
+    }, null, 2);
+  } catch (err) {
+    $("mcp-url").textContent = "（服务未连接：" + err.message + "）";
+  }
+
+  // 工具列表（从 MCP 端点实时拉取，验证协议可用）
+  try {
+    const res = await fetch("/mcp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
+    });
+    const data = await res.json();
+    const tools = (data.result && data.result.tools) || [];
+    const list = $("mcp-tools");
+    list.innerHTML = "";
+    for (const t of tools) {
+      const div = document.createElement("div");
+      div.className = "tool-item";
+      div.innerHTML = '<span class="tname">' + escapeHtml(t.name) + "</span>" +
+        '<span class="tdesc">' + escapeHtml(t.description || "") + "</span>";
+      list.appendChild(div);
+    }
+    $("badge-mcp").textContent = tools.length + " 工具";
+  } catch {
+    $("badge-mcp").textContent = "✗";
+  }
+
+  // 缓存状态
+  try {
+    const info = await (await fetch("/api/cache-info")).json();
+    $("cache-has").textContent = info.hasData ? "有数据" : "空";
+    $("cache-has").className = info.hasData ? "ok-text" : "warn-text";
+    $("cache-nodes").textContent = info.nodeCount;
+    $("cache-bytes").textContent = fmtBytes(info.bytes);
+    $("cache-time").textContent = info.savedAt || "—";
+    $("cache-filekey").textContent = (state.metaObj && state.metaObj.fileKey) || "—";
+  } catch {}
+}
+
+/* ---------- 渲染：Step 1-5 ---------- */
+
+function renderStep1() {
+  const tbody = $("flavors-body");
+  tbody.innerHTML = "";
+  state.flavors.forEach((f, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = "<td>" + i + '</td><td class="mono">' + escapeHtml(f.kind) + '</td><td class="mono">' +
+      escapeHtml(f.type) + "</td><td>" + f.size + "</td><td>" + f.desc + "</td>";
+    tbody.appendChild(tr);
+  });
+  $("types-note").textContent = state.typesNote;
+  $("plain-pre").textContent = state.plain || "（无 text/plain）";
+  $("html-pre").innerHTML = highlightMarkers(escapeHtml(state.html));
+  const cards = $("marker-cards");
+  cards.innerHTML = "";
+  for (const m of state.markers) {
+    const approxBytes = Math.floor(m.payload.length * 3 / 4);
+    const card = document.createElement("div");
+    card.className = "marker-card " + m.cls;
+    card.innerHTML = "<h3>" + m.label + "</h3>" +
+      '<div class="stat">base64 长度：<b>' + m.payload.length + "</b> 字符</div>" +
+      '<div class="stat">解码后约：<b>' + fmtBytes(approxBytes) + "</b></div>" +
+      "<details><summary>查看完整 base64</summary><pre>" + escapeHtml(m.payload) + "</pre></details>";
+    cards.appendChild(card);
+  }
+}
+function highlightMarkers(escapedHtml) {
+  return escapedHtml.replace(
+    /&lt;!--\((figmeta|figma)\)([\s\S]*?)(\(\/\1\))--&gt;/g,
+    (m, name, payload, close) => {
+      const cls = name === "figmeta" ? "marker-figmeta" : "marker-figdata";
+      let shown = payload;
+      if (payload.length > 400) {
+        shown = payload.slice(0, 200) + "\n  ………（共 " + payload.length + " 字符）………\n  " + payload.slice(-100);
+      }
+      return '&lt;!--<span class="' + cls + '">(' + name + ")" + shown + close + "</span>--&gt;";
+    }
+  );
+}
+
+function renderStep2() {
+  if (state.metaObj) $("meta-json-pre").innerHTML = highlightJson(state.metaObj);
+  if (state.archive && state.figB64) {
+    $("bin-b64-len").textContent = state.figB64.length;
+    const figBytes = b64ToBytes(state.figB64);
+    $("bin-bin-len").textContent = fmtBytes(figBytes.length) + "（" + figBytes.length + " 字节）";
+    $("bin-magic").textContent = JSON.stringify(state.archive.magic);
+    $("bin-version").textContent = state.archive.version;
+    const guesses = ["Kiwi schema（deflate-raw 压缩）", "节点数据（zstd/deflate 压缩）", "附加块"];
+    const cbody = $("chunks-body");
+    cbody.innerHTML = "";
+    state.archive.chunks.forEach((c, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + i + '</td><td class="mono">0x' + c.dataOffset.toString(16) + '</td><td class="mono">' +
+        c.length.toLocaleString() + ' B</td><td class="mono">' + escapeHtml(toHex(c.bytes.slice(0, 16), " ")) +
+        (c.length > 16 ? " …" : "") + "</td><td>" + (guesses[i] || guesses[2]) + "</td>";
+      cbody.appendChild(tr);
+    });
+    $("hexdump-pre").innerHTML = hexDumpAnnotated(figBytes, 320, state.archive);
+  }
+}
+
+function renderStep3() {
+  if (!state.inflate) return;
+  const guesses = ["Kiwi schema", "节点数据 Message", "附加块"];
+  const tbody = $("inflate-body");
+  tbody.innerHTML = "";
+  state.inflate.forEach((r) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = "<td>" + r.idx + "</td><td>" + (guesses[r.idx] || guesses[2]) + '</td><td class="mono">' +
+      fmtBytes(r.compressed) + '</td><td class="mono">' + fmtBytes(r.decompressed) + "</td><td>" + r.ratio +
+      '</td><td class="mono ok-text">' + r.format + '</td><td class="mono">' + escapeHtml(r.headHex) + "</td>";
+    tbody.appendChild(tr);
+  });
+  $("schema-str-count").textContent = state.schemaStrings.length;
+  const cloud = $("schema-strings");
+  cloud.innerHTML = "";
+  state.schemaStrings.slice(0, 300).forEach((s) => {
+    const chip = document.createElement("span");
+    chip.className = "mono";
+    chip.style.cssText = "font-size:11px;padding:2px 8px;border-radius:10px;background:#1a1a1a;border:1px solid var(--border);color:var(--figdata)";
+    chip.textContent = s;
+    cloud.appendChild(chip);
+  });
+  if (state.inflate[1]) $("data-head-pre").innerHTML = hexDumpAnnotated(state.inflate[1].raw, 256, { chunks: [] });
+}
+
+function renderStep4() {
+  if (!state.kiwi) return;
+  $("kiwi-defs").textContent = state.kiwi.defs;
+  $("kiwi-nodes").textContent = state.kiwi.nodeCount;
+  $("kiwi-blobs").textContent = state.kiwi.blobCount;
+  const ft = $("kiwi-fields");
+  ft.innerHTML = "";
+  for (const key of Object.keys(state.kiwi.message)) {
+    const v = state.kiwi.message[key];
+    let desc;
+    if (Array.isArray(v)) desc = "Array(" + v.length + ")";
+    else if (typeof v === "bigint") desc = v.toString() + "n";
+    else if (v === null) desc = "null";
+    else if (typeof v === "object") { desc = JSON.stringify(v); if (desc.length > 60) desc = desc.slice(0, 60) + "…"; }
+    else desc = JSON.stringify(v);
+    const tr = document.createElement("tr");
+    tr.innerHTML = '<td class="mono">' + escapeHtml(key) + "</td><td>" + escapeHtml(desc) + "</td>";
+    ft.appendChild(tr);
+  }
+  const hist = $("kiwi-typehist");
+  hist.innerHTML = "";
+  for (const [type, count] of Object.entries(state.kiwi.typeHist).sort((a, b) => b[1] - a[1])) {
+    const chip = document.createElement("span");
+    chip.className = "mono";
+    chip.style.cssText = "font-size:11px;padding:2px 8px;border-radius:10px;background:#1a1a1a;border:1px solid var(--border);color:var(--figdata)";
+    chip.textContent = type + " ×" + count;
+    hist.appendChild(chip);
+  }
+}
+
+function treeNodeHtml(n, childrenMap, depth, out, maxDepth) {
+  const kids = childrenMap.get(n.guid) || [];
+  const hasKids = kids.length > 0;
+  const typeColors = {
+    DOCUMENT: "#b18cff", CANVAS: "#0d99ff", FRAME: "#0acf83", SECTION: "#0d99ff",
+    SYMBOL: "#f5a623", INSTANCE: "#f5a623", TEXT: "#4dd0e1", VECTOR: "#ff8a80",
+    RECTANGLE: "#ffb74d", ROUNDED_RECTANGLE: "#ffb74d", ELLIPSE: "#ffb74d",
+    STAR: "#ffb74d", LINE: "#ffb74d", BOOLEAN_OPERATION: "#ff8a80",
+  };
+  const color = typeColors[n.type] || "#9e9e9e";
+  const size = n.size ? '<span class="tv-size">' + Math.round(n.size.x) + "×" + Math.round(n.size.y) + "</span>" : "";
+  const badge = hasKids ? '<span class="tv-count">' + kids.length + "</span>" : "";
+  out.push('<div class="tv-row" style="margin-left:' + depth * 18 + 'px">' +
+    '<span class="tv-type" style="color:' + color + '">' + n.type + "</span>" +
+    '<span class="tv-name">' + escapeHtml(n.name || "(unnamed)") + "</span>" + size + badge + "</div>");
+  if (depth < maxDepth) {
+    for (const k of kids) treeNodeHtml(k, childrenMap, depth + 1, out, maxDepth);
+  } else if (hasKids) {
+    out.push('<div class="tv-row tv-trunc" style="margin-left:' + (depth + 1) * 18 + 'px">… ' + kids.length + " 个子节点</div>");
+  }
+}
+function renderStep5() {
+  if (!state.tree) return;
+  const out = [];
+  for (const r of state.tree.roots) treeNodeHtml(r, state.tree.children, 0, out, 12);
+  $("tree-view").innerHTML = out.join("");
+  $("tree-stats").textContent = state.tree.nodeCount + " 节点 · " + state.tree.roots.length + " 根";
+}
+
+/* ---------- 重置 ---------- */
+
+function resetState() {
+  Object.assign(state, {
+    pasted: false, flavors: [], typesNote: "", plain: "", html: "",
+    markers: [], hasImage: false, imageUrl: "",
+    metaObj: null, archive: null, figB64: null, inflate: null, schemaStrings: [],
+    kiwi: null, tree: null, cacheUploaded: false, steps: {},
+  });
+  $("panel-image").classList.add("hidden");
+  $("status").classList.add("hidden");
+}
+
+/* ---------- 按钮 ---------- */
+
+$("btn-copy").addEventListener("click", () => {
+  navigator.clipboard.writeText(state.html || "").then(() => {
+    $("btn-copy").textContent = "已复制 ✓";
+    setTimeout(() => ($("btn-copy").textContent = "复制原文"), 1200);
+  });
+});
+$("btn-download").addEventListener("click", () => {
+  const blob = new Blob([state.html], { type: "text/html" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "figma-clipboard-" + Date.now() + ".html";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+$("btn-copy-mcp").addEventListener("click", () => {
+  navigator.clipboard.writeText(location.origin + "/mcp").then(() => {
+    $("btn-copy-mcp").textContent = "已复制 ✓";
+    setTimeout(() => ($("btn-copy-mcp").textContent = "复制 MCP 地址"), 1200);
+  });
+});
+$("btn-refresh-cache").addEventListener("click", renderMcp);
+
+/* ---------- 启动 ---------- */
+
+window.addEventListener("load", async () => {
+  pasteZone.focus();
+  // 拉服务信息
+  try {
+    const health = await (await fetch("/api/health")).json();
+    $("ver-badge").textContent = "v" + health.version;
+    Logger.info("page", "页面加载", { version: health.version, cache: health.cache });
+  } catch {
+    Logger.warn("page", "服务健康检查失败");
+  }
+});
+</script>
+</body>
+</html>

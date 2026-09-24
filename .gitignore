@@ -1,0 +1,46 @@
+# ============ 敏感数据（绝不发布/提交） ============
+# 设计缓存与载荷（含内部设计文件完整数据）
+*.cache.json
+fcm-cache.json
+new-cache.json
+logs/
+*.log
+payload-*.json
+decoded-message.json
+clipboard.html
+
+# 设计 token 与组件清单（WPS 内部设计体系）
+tokens.json
+components.json
+
+# 设计截图
+*.png
+!docs/images/*.png
+
+# fileKey 相关临时文件
+figma-clipboard-*.html
+
+# ============ 依赖与构建 ============
+node_modules/
+dist/
+.vite/
+
+# ============ 环境与凭证 ============
+.env
+.env.*
+*.pem
+*.key
+
+# ============ 系统文件 ============
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============ 内部审查（不发布） ============
+LEGAL-REVIEW.md
+
+# ============ 临时文件 ============
+*.tmp
+*.bak
+*~
+app-compiled.js

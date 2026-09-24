@@ -1,0 +1,37 @@
+{
+  "name": "figma-clipboard-design-mcp",
+  "version": "0.1.0",
+  "description": "Parse Figma clipboard data locally and expose it to AI via MCP. Zero runtime dependencies.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "figma-clipboard-mcp": "bin/figma-mcp.mjs"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "public/",
+    "scripts/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "figma",
+    "clipboard",
+    "mcp",
+    "model-context-protocol",
+    "kiwi",
+    "design-to-code"
+  ],
+  "author": "ducaoya",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ducaoya/figma-clipboard-design-mcp.git"
+  },
+  "homepage": "https://github.com/ducaoya/figma-clipboard-design-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/ducaoya/figma-clipboard-design-mcp/issues"
+  }
+}
