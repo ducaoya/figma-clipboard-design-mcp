@@ -133,6 +133,19 @@ node lib/server.mjs
 node scripts/release.js patch   # 或 minor / major / keep（首次发布保持版本号）
 ```
 
+## 开发
+
+```bash
+# 本地运行（仓库根目录）
+node lib/server.mjs
+
+# 发布（Trusted Publisher → GitHub Actions 自动发布）
+npm version patch -m "[release] %s"
+git push origin main --follow-tags
+```
+
+发布通过 GitHub Actions 完成（OIDC 免 token）：推送带 `[release]` 前缀提交即触发。
+
 ## License
 
 MIT

@@ -1,0 +1,77 @@
+# 发布流程：npm Trusted Publishing（OIDC，无需任何长期 token）
+#
+# ── 触发条件（两者同时满足才发布）───────────────────────────────
+#   1. 推送到 master 分支
+#   2. 该次推送的「最新一条提交」的主题（首行）以 [release] 开头
+#      （用 startsWith 只认首行，避免正文/文档里提到关键字就误触发）
+#
+# ── 本地发版 ─────────────────────────────────────────────────
+#   npm version patch -m "[release] %s"
+#   git push origin master --follow-tags
+#   （npm version 会自动 bump package.json、生成提交与 vX.Y.Z tag）
+#
+# ── 仅一次的前置配置（npm 网页，无法用代码完成）────────────────
+#   npm 包页 → Settings → Trusted Publisher → GitHub Actions
+#     Repository owner : ducaoya
+#     Repository name  : figma-clipboard-design-mcp
+#     Workflow name    : publish.yml     ← 必须与本文件名一致
+#     Environment      : （留空）
+
+name: Publish
+
+on:
+  push:
+    branches: [main]
+
+# 防止多次发布并发互相覆盖
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # 只在本仓库 + 最新提交的「主题（首行）」以 [release] 开头时才执行；否则整个 job 跳过
+    if: >
+      github.repository == 'ducaoya/figma-clipboard-design-mcp' &&
+      startsWith(github.event.head_commit.message, '[release]')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Trusted Publishing 必需的 OIDC 权限
+    steps:
+      # 提前设定默认分支名，静音 checkout 时 git 的 init.defaultBranch 提示
+      - name: Silence git default-branch hint
+        run: git config --global init.defaultBranch main
+
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false # 发布构建不使用缓存
+
+      # 兑底保证 npm >= 11.5.1（Trusted Publishing 要求）
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
+      - name: Resolve package version
+        id: ver
+        run: |
+          echo "version=$(node -p 'require("./package.json").version')" >> "$GITHUB_OUTPUT"
+
+      # 兜底：同名版本已发布则跳过，避免重复发布导致 job 失败
+      - name: Guard against duplicate publish
+        id: guard
+        run: |
+          v="${{ steps.ver.outputs.version }}"
+          if npm view "figma-clipboard-design-mcp@$v" version >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::figma-clipboard-design-mcp@$v 已存在于 npm，跳过发布"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm
+        if: steps.guard.outputs.skip != 'true'
+        run: npm publish --provenance --access public
