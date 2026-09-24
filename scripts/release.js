@@ -178,7 +178,10 @@ if (!DRY_RUN) {
 // ---------- 4. git commit + tag ----------
 step("5. git commit + tag");
 if (isGit && !DRY_RUN) {
-  run(`git add package.json package-lock.json`);
+  // 零依赖包可能没有 package-lock.json，只 add 存在的文件
+  const filesToAdd = ["package.json"];
+  if (fs.existsSync(path.join(ROOT, "package-lock.json"))) filesToAdd.push("package-lock.json");
+  run(`git add ${filesToAdd.join(" ")}`);
   run(`git commit -m "release: v${next}"`);
   run(`git tag v${next}`);
   console.log(`✓ 已提交并打 tag v${next}`);
