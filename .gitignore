@@ -39,6 +39,10 @@ desktop.ini
 # ============ 内部审查（不发布） ============
 LEGAL-REVIEW.md
 
+# ============ 本地运维脚本（不发布） ============
+# 仅用于本机配置多远端推送（origin = GitHub 主 + 内网 GitLab 备份）
+scripts/setup-remotes.sh
+
 # ============ 临时文件 ============
 *.tmp
 *.bak
