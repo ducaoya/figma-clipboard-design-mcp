@@ -128,23 +128,36 @@ text/html → 提取标记 → base64 → fig-kiwi 归档（魔数+版本+分块
 ```bash
 # 本地运行（仓库根目录）
 node lib/server.mjs
-
-# 发布（自动：前置检查 → 版本 bump → 产物安全验证 → 冒烟测试 → git tag → npm publish）
-node scripts/release.js patch   # 或 minor / major / keep（首次发布保持版本号）
 ```
 
-## 开发
+## 发布
+
+发布由 GitHub Actions 完成，走 npm Trusted Publishing（OIDC），**无需任何长期 token**。
+
+**触发条件**（`.github/workflows/publish.yml`，两者同时满足才发布）
+
+1. 推送到 **`master`** 分支；
+2. 该次推送**最新一条提交的标题（首行）以 `[release]` 开头**——用 `startsWith` 只匹配首行，正文里出现 `[release]` 不会误触发。
+
+**发版步骤**
 
 ```bash
-# 本地运行（仓库根目录）
-node lib/server.mjs
+# 1) bump 版本，生成提交与 vX.Y.Z tag（提交标题自动带 [release] 前缀）
+npm version patch -m "[release] %s"   # 或 minor / major
 
-# 发布（Trusted Publisher → GitHub Actions 自动发布）
-npm version patch -m "[release] %s"
+# 2) 推送分支与 tag（--follow-tags 会带上刚生成的 tag）
 git push origin master --follow-tags
 ```
 
-发布通过 GitHub Actions 完成（OIDC 免 token）：推送带 `[release]` 前缀提交即触发。
+推送后 GitHub 在 `master` 上触发 `Publish` 工作流：升级 npm → 读取 `package.json` 版本 → 发布到 npm（`--provenance --access public`）。
+
+**内置的防误发保护**
+
+- 仓库判断：仅 `ducaoya/figma-clipboard-design-mcp` 会执行，fork 里推送不会发布；
+- 版本去重：该版本号已存在于 npm 时整个 job 跳过（不报错）；
+- 并发锁：`concurrency: npm-publish` + `cancel-in-progress: false`，多次发布不会互相覆盖。
+
+> 一次性前置配置（npm 网页，无法用代码完成）：npm 包页 → Settings → Trusted Publisher → GitHub Actions，填 `ducaoya` / `figma-clipboard-design-mcp` / `publish.yml`。绑定的是**仓库 + 工作流文件名**，与分支名无关。
 
 ## License
 
