@@ -21,7 +21,7 @@ name: Publish
 
 on:
   push:
-    branches: [main]
+    branches: [master]
 
 # 防止多次发布并发互相覆盖
 concurrency:
@@ -41,7 +41,7 @@ jobs:
     steps:
       # 提前设定默认分支名，静音 checkout 时 git 的 init.defaultBranch 提示
       - name: Silence git default-branch hint
-        run: git config --global init.defaultBranch main
+        run: git config --global init.defaultBranch master
 
       - uses: actions/checkout@v6
 

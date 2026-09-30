@@ -141,7 +141,7 @@ node lib/server.mjs
 
 # 发布（Trusted Publisher → GitHub Actions 自动发布）
 npm version patch -m "[release] %s"
-git push origin main --follow-tags
+git push origin master --follow-tags
 ```
 
 发布通过 GitHub Actions 完成（OIDC 免 token）：推送带 `[release]` 前缀提交即触发。
