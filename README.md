@@ -78,27 +78,37 @@ Claude Code / Cursor 等支持 Streamable HTTP 的客户端：
 | `figma_get_node` | 在指定页面内按 guid 取单个节点完整信息（位置/填充/描边/文本/约束） |
 | `figma_get_stats` | 指定页面的类型分布直方图等统计 |
 | `figma_get_raw` | 指定页面的全量原始 JSON（可截断） |
+| `figma_get_subtree` | 只取某个节点下的子树（含自身），用于「只细化某个节点」 |
+| `figma_expand_instances` | 批量展开 INSTANCE：按 `componentId` 找到组件定义（递归展开嵌套实例），把空壳变成真实内容 |
+| `figma_get_assets` | 取页面里的图片资源（IMAGE 填充的真实像素，MCP image 内容块） |
 
 除 `figma_list_pastes` 外，所有工具都必须传 `pasteId` —— 页面数据不存在「默认页面」，只能按 id 取。id 缺失时会返回当前可用页面列表，便于 AI 自我纠正。
 
-推荐 AI 使用顺序：`figma_list_pastes` → 按名称/简介的语义匹配目标 id → 带 `pasteId` 调 `figma_get_screenshot`（有截图时先看视觉）/ `figma_get_tree` / `figma_search_nodes` / `figma_get_node`。
+推荐 AI 使用顺序：`figma_list_pastes` → 按名称/简介的语义匹配目标 id → 带 `pasteId` 调 `figma_get_screenshot`（先看视觉基线）→ `figma_get_subtree`（只拉目标子树）→ 遇到 INSTANCE 用 `figma_expand_instances` 展开成真实组件 → 遇 `fills[].image.ref` 用 `figma_get_assets` 取原图。
+
+还原设计时最容易踩的两个坑（已由工具解决）：
+
+1. 实例不展开就只能画出空壳 —— 322 个 INSTANCE 背后是 148 个组件定义，走 `figma_expand_instances` 一次拿到；
+2. 图片填充不取就只能画色块 —— 节点 `fills` 里 `type: IMAGE` 时，`image.ref` 就是 `figma_get_assets` 的入参。
 
 ## 网页功能
 
 粘贴后浏览器内完成全量解码（服务端零解码逻辑），分三个页面：
 
 - **新建**：粘贴入口 + 解析流水线 + 结果条（填名称/简介后「保存为页面」）+ Step 1~5 折叠面板（本次粘贴的诊断信息，刷新即失效）
-- **页面列表**：已保存页面的卡片网格（含截图缩略图）。卡片可改名/改简介、一键复制「名称 · id」、查看详情（截图 + 节点数据按需拉取）、删除
+- **页面列表**：已保存页面的卡片网格（含截图缩略图）。**点卡片主体 = 复制「项目内实现」提示词**（分四阶段：摸项目 → 取数 → 映射表 → 验收；含 pasteId）；卡片上的「复制」= 复制「名称 · id」，「ID」= 只复制 id；可改名/改简介、查看详情、删除
 - **MCP 服务**：端点、客户端配置示例、实时工具列表、存储用量
 
 ## 数据流与缓存策略
 
 - 浏览器解码后，把**投影后的节点数组**（guid/parent/type/name/size/transform/fills/strokes/text/约束/自动布局…）POST 到 `/api/pastes`，**只有点「保存为页面」才写服务端**；
 - 服务端按页面分别存储：`index.json`（索引，列表页与 MCP list 只读它）+ `<id>.json`（单份完整数据，按 id 取详情时才读），位于 `os.tmpdir()/figma-clipboard-mcp/cache/`；
+- 节点 IMAGE 填充引用的原图存为 `pastes/<id>.<ref>.png`（单张≤ 6MB，单页≤ 40 张），通过 `GET /api/pastes/:id/assets/:ref` 或 MCP `figma_get_assets` 取；
 - 截图单独存为 `pastes/<id>.png`（来自 Figma 复制时附带的 PNG 快照，单张上限 8MB）；不存在时相关工具返回明确错误；
 - 截图来源：Figma 的 `Ctrl+C` 不带位图，需在 Figma 里额外按 `Ctrl+Shift+C` 复制为 PNG，网页里再粘贴一次即自动附加到当前结果；
 - 写入走临时文件 + `rename` 原子替换；最多保留 **10 份 / 100MB**（`FCM_MAX_PASTES`、`FCM_MAX_TOTAL_BYTES` 可调），超出按保存时间淘汰最旧；
 - 矢量二进制 blob 不入存储（体积从 ~22MB 降到 ~2MB），节点保留 `vectorBlobIndex` 引用；
+- 节点投影保留设计与代码对接所需的结构：`componentId` / `componentSetId`（实例 → 组件）、`styles`（fill/stroke/text/effect 样式 ID）、`variable` / `variableSet`（变量名、类型、valuesByMode）、`autoLayout`（含 HUG/FILL/FIXED sizing 与对齐、内边距）、`layoutGrids`、`interactions`（原型交互）、`codeSyntax`（Figma Code Syntax，如 `var(--kd-color-primary)`）；未识别的字段进入 `extra`（单字段上限 1200 字符）；
 - 旧版单份缓存（`cache/latest.json`）在启动时自动迁移为一份页面。
 
 ## 安全设计

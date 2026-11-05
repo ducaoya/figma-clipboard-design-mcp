@@ -203,16 +203,33 @@
   .card-name:focus, .card-note:focus { background: #1a1a1a; border-radius: 4px; }
   .card-id { font-family: Consolas, monospace; font-size: 11px; color: var(--accent); margin-top: 2px; }
   .card-thumb {
-    display: block; width: 100%; height: 132px; object-fit: contain; object-position: center;
+    display: block; width: 100%; height: 132px; object-fit: cover; object-position: top center;
     margin-top: 10px; border-radius: 6px; background: #1a1a1a; border: 1px solid var(--border);
   }
   .card-thumb.placeholder {
     display: flex; align-items: center; justify-content: center;
     color: var(--muted); font-size: 12px;
   }
+  .card-thumb-wrap { position: relative; }
+  .thumb-zoom {
+    position: absolute; top: 6px; right: 6px; padding: 1px 7px; font-size: 13px; line-height: 1.5;
+    background: rgba(0, 0, 0, .6); border-color: rgba(255, 255, 255, .25); color: #fff;
+  }
+  .thumb-zoom:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .detail-shot { cursor: zoom-in; }
   .detail-shot {
     display: block; max-width: 100%; max-height: 420px; margin-top: 2px;
     border-radius: 8px; border: 1px solid var(--border); background: #1a1a1a;
+  }
+
+  /* 全屏看图 */
+  #modal-image { padding: 0; background: rgba(0, 0, 0, .94); cursor: zoom-out; }
+  #modal-image .image-full {
+    max-width: 100vw; max-height: 100vh; object-fit: contain; display: block; cursor: default;
+  }
+  #modal-image .image-hint {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    color: #9a9a9a; font-size: 12px; pointer-events: none;
   }
   .card-note { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 20px; outline: none; }
   .card-note:empty::before { content: attr(data-placeholder); color: var(--border); }
@@ -486,7 +503,8 @@
   <!-- ============ 页面列表 ============ -->
   <section class="tab-page" id="page-list">
     <div class="list-toolbar">
-      <div><b id="list-count">0</b> 个页面 · 共 <span id="list-bytes">0 B</span><span class="note" id="list-limit"></span></div>
+      <div><b id="list-count">0</b> 个页面 · 共 <span id="list-bytes">0 B</span><span class="note" id="list-limit"></span>
+        <span class="note">· 点击卡片复制还原提示词，「ID」按钮单独复制 id</span></div>
       <button id="btn-new-page" class="primary">+ 新建页面</button>
     </div>
     <div class="grid" id="paste-grid"></div>
@@ -517,6 +535,12 @@
     </div>
     <div class="detail-body" id="detail-body"></div>
   </div>
+</div>
+
+<!-- ============ 全屏看图 ============ -->
+<div class="modal hidden" id="modal-image">
+  <img class="image-full" id="modal-image-img" alt="页面截图">
+  <div class="image-hint">点击空白处或按 Esc 关闭</div>
 </div>
 
 <script src="/vendor/fzstd.js"></script>
@@ -622,6 +646,25 @@ function blobToBase64(blob) {
     reader.readAsDataURL(blob);
   });
 }
+
+// 截图入库前限幅：Figma 可能给 4K 快照（3~5MB），缩到 2560 长边够用且更省空间
+async function downscaleImage(blob, maxEdge) {
+  try {
+    const bmp = await createImageBitmap(blob);
+    const scale = Math.min(1, maxEdge / Math.max(bmp.width, bmp.height));
+    if (scale >= 1) { bmp.close(); return blob; }
+    const w = Math.round(bmp.width * scale);
+    const h = Math.round(bmp.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    canvas.getContext("2d").drawImage(bmp, 0, 0, w, h);
+    bmp.close();
+    const out = await new Promise((r) => canvas.toBlob(r, "image/png"));
+    return out && out.size > 0 && out.size < blob.size ? out : blob;
+  } catch {
+    return blob;
+  }
+}
 function b64ToBytes(b64) {
   const bin = atob(b64.replace(/\s+/g, ""));
   const bytes = new Uint8Array(bin.length);
@@ -723,7 +766,7 @@ const state = {
   pasted: false, flavors: [], typesNote: "", plain: "", html: "",
   markers: [], hasImage: false, imageUrl: "", imageBlob: null,
   metaObj: null, archive: null, inflate: null, schemaStrings: [],
-  kiwi: null, tree: null, saved: null, unsaved: false,
+  kiwi: null, tree: null, assetCtx: null, saved: null, unsaved: false,
   steps: {},
 };
 
@@ -732,7 +775,154 @@ const state = {
 const guidKey = (g) => (g ? g.sessionID + ":" + g.localID : null);
 const num = (v) => (typeof v === "bigint" ? Number(v) : v);
 
-function projectNode(n) {
+// projectNode 已显式处理的字段（避免与 extra 重复）
+const PROJECTED_KEYS = new Set([
+  "guid", "parentIndex", "phase", "type", "name", "visible", "opacity", "size", "transform",
+  "fillPaints", "strokePaints", "effects", "strokeWeight", "horizontalConstraint", "verticalConstraint",
+  "cornerRadius", "rectangleCornerRadii", "textData", "fontSize", "fontName", "vectorData",
+  "stackMode", "stackAlign", "stackCounterAlign", "stackJustify", "stackPadding", "stackItemSpacing",
+  "stackPrimaryAlignItems", "stackCounterAlignItems",
+  "stackPaddingTop", "stackPaddingRight", "stackPaddingBottom", "stackPaddingLeft",
+  "stackHorizontalPadding", "stackVerticalPadding",
+  "componentId", "componentSetId", "componentKey", "symbolData", "codeSyntax",
+  "styleIdForFill", "styleIdForStrokeFill", "styleIdForText", "styleIdForEffect",
+  "variableResolvedType", "variableDataValues", "variableSetID", "variableSetModes",
+  "layoutGrids", "stackPrimarySizing", "stackCounterSizing", "stackWrap", "stackSpacing",
+  "strokeAlign", "strokeJoin", "strokeCap", "dashPattern",
+  "borderTopWeight", "borderRightWeight", "borderBottomWeight", "borderLeftWeight",
+  "lineHeight", "letterSpacing", "textAlignHorizontal", "textAlignVertical", "textAutoResize",
+  "prototypeInteractions", "minSize", "targetAspectRatio", "description", "symbolDescription",
+  "rectangleTopLeftCornerRadius", "rectangleTopRightCornerRadius",
+  "rectangleBottomRightCornerRadius", "rectangleBottomLeftCornerRadius",
+]);
+
+// 明确不入库的字段：无名哈希 / 缓存 / 派生数据（实测占 extra 的 90%+）
+const EXTRA_DROP = new Set([
+  "derivedSymbolData", "derivedSymbolDataLayoutVersion", "sourceLibraryKey", "parameterConsumptionMap",
+  "overrideKey", "componentPropDefs", "componentPropAssignments", "componentPropRefs",
+  "pluginData", "variantPropSpecs", "publishID", "key", "derivedTextData", "exportSettings",
+  "isPublishable", "locked", "version", "isSymbolPublishable", "sharedSymbolVersion",
+  "sortPosition", "libraryMoveHistory", "proportionsConstrained", "frameMaskDisabled",
+  "userFacingVersion", "partialPasteAnnotation", "fontVersion", "fontVariantContextualLigatures",
+  "fontVariantCommonLigatures", "textUserLayoutVersion", "textBidiVersion", "textExplicitLayoutVersion",
+  "stackLayoutVersion", "vectorOperationVersion", "publishedVersion", "isSoftDeleted", "internalOnly",
+  "emojiImageSet", "simplifyInstancePanels", "autoRename", "guides", "mask",
+  "stateGroupPropertyValueOrders", "exportBackgroundDisabled", "backgroundOpacity", "backgroundEnabled",
+]);
+
+// Guid / assetRef / 字符串 → 可读引用
+function refKey(v) {
+  if (!v) return null;
+  if (typeof v === "string") return v;
+  if (v.sessionID != null && v.localID != null) return v.sessionID + ":" + v.localID;
+  if (v.assetRef && v.assetRef.key) return "lib:" + v.assetRef.key.slice(0, 8);
+  return null;
+}
+
+// 未知字段兜底：只接受可序列化且体积可控的值，避免 Figma 格式演进时静默丢信息
+const extraJson = (v) => JSON.stringify(v, (_k, val) => (typeof val === "bigint" ? Number(val) : val));
+
+function boundedExtra(v) {
+  let s;
+  try { s = extraJson(v); } catch { return undefined; }
+  if (!s || s === "null" || s === "{}" || s === "[]") return undefined;
+  if (s.length <= 1200) return JSON.parse(s);
+  // 过大（如 symbolData 里混了 overrides）：只保留一层原始值，别把名字也丢掉
+  if (v && typeof v === "object" && !Array.isArray(v)) {
+    const shallow = {};
+    for (const [k, val] of Object.entries(v)) {
+      const t = typeof val;
+      if (t === "string" && val.length <= 200) shallow[k] = val;
+      else if (t === "number" || t === "boolean") shallow[k] = val;
+      else if (t === "bigint") shallow[k] = Number(val);
+    }
+    try {
+      const s2 = extraJson(shallow);
+      if (s2 && s2 !== "{}" && s2.length <= 1200) return JSON.parse(s2);
+    } catch { /* 忽略 */ }
+  }
+  return undefined;
+}
+
+function extraOf(n) {
+  let out = null;
+  for (const k of Object.keys(n)) {
+    if (PROJECTED_KEYS.has(k) || EXTRA_DROP.has(k)) continue;
+    const v = n[k];
+    if (v === null || v === undefined || typeof v === "function") continue;
+    const bounded = boundedExtra(v);
+    if (bounded === undefined) continue;
+    if (!out) out = {};
+    out[k] = bounded;
+  }
+  return out;
+}
+
+const bytesOf = (v) => {
+  if (!v) return null;
+  if (v instanceof Uint8Array) return v;
+  if (Array.isArray(v)) return new Uint8Array(v);
+  if (typeof v === "object") return new Uint8Array(Object.values(v));
+  return null;
+};
+const hashHex = (h) => {
+  if (!h) return null;
+  if (typeof h === "string") return h;
+  const u8 = bytesOf(h);
+  if (!u8 || u8.length < 8) return null;
+  return Array.from(u8).map((b) => Number(b).toString(16).padStart(2, "0")).join("");
+};
+function sniffMime(u8) {
+  if (u8[0] === 0x89 && u8[1] === 0x50) return "image/png";
+  if (u8[0] === 0xff && u8[1] === 0xd8) return "image/jpeg";
+  if (u8[0] === 0x47 && u8[1] === 0x49) return "image/gif";
+  if (u8[0] === 0x52 && u8[1] === 0x49 && u8[8] === 0x57) return "image/webp";
+  return "image/png";
+}
+async function sha1Hex(u8) {
+  try {
+    const buf = await crypto.subtle.digest("SHA-1", u8);
+    return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  } catch { return null; }
+}
+
+// 图片资源的哈希表：Figma 的 image.hash = 图片字节的 SHA-1，blob 里就是原图
+async function buildAssetContext(message) {
+  const blobs = message.blobs || [];
+  const ctx = { byHash: new Map(), blobs, needed: new Map() };
+  const hasImage = (message.nodeChanges || []).some((n) =>
+    (n.fillPaints || []).some((p) => p && p.type === "IMAGE"));
+  if (!hasImage) return ctx;
+  for (let i = 0; i < blobs.length; i++) {
+    const u8 = bytesOf(blobs[i]);
+    if (!u8 || !u8.length) continue;
+    const hex = await sha1Hex(u8);
+    if (hex && !ctx.byHash.has(hex)) ctx.byHash.set(hex, i);
+  }
+  return ctx;
+}
+
+// IMAGE 填充：把 20 字节 hash 换成短 ref，并登记需要落盘的资源
+function projectPaint(p, ctx) {
+  if (!p || typeof p !== "object" || p.type !== "IMAGE") return p;
+  const hex = hashHex(p.image && p.image.hash);
+  const out = { type: "IMAGE" };
+  if (p.opacity != null) out.opacity = num(p.opacity);
+  if (p.visible === false) out.visible = false;
+  if (p.blendMode) out.blendMode = p.blendMode;
+  // 图片裁切信息在 paint 自身（不是 paint.image 里）：丢了就只能直接拉伸原图
+  if (p.transform) out.transform = p.transform;
+  const scaleMode = p.scaleMode || p.imageScaleMode || (p.image && p.image.scaleMode);
+  if (scaleMode) out.scaleMode = scaleMode;
+  if (hex) {
+    const ref = hex.slice(0, 12);
+    out.image = { ref, sha1: hex.slice(0, 8) };
+    if (ctx && ctx.byHash.has(hex)) ctx.needed.set(ref, hex);
+  }
+  return out;
+}
+
+function projectNode(n, ctx) {
   const out = {
     guid: guidKey(n.guid),
     parent: n.parentIndex ? guidKey(n.parentIndex.guid) : null,
@@ -745,8 +935,8 @@ function projectNode(n) {
   if (n.transform) {
     out.transform = [n.transform.m00, n.transform.m01, n.transform.m02, n.transform.m10, n.transform.m11, n.transform.m12].map(num);
   }
-  if (n.fillPaints && n.fillPaints.length) out.fills = n.fillPaints;
-  if (n.strokePaints && n.strokePaints.length) out.strokes = n.strokePaints;
+  if (n.fillPaints && n.fillPaints.length) out.fills = n.fillPaints.map((p) => projectPaint(p, ctx));
+  if (n.strokePaints && n.strokePaints.length) out.strokes = n.strokePaints.map((p) => projectPaint(p, ctx));
   if (n.effects && n.effects.length) out.effects = n.effects;
   if (n.strokeWeight != null) out.strokeWeight = num(n.strokeWeight);
   if (n.horizontalConstraint) out.constraint = { h: n.horizontalConstraint, v: n.verticalConstraint };
@@ -765,9 +955,126 @@ function projectNode(n) {
     out.vectorBlobIndex = num(n.vectorData.vectorNetworkBlob); // blob 索引，二进制不缓存
   }
   if (n.stackMode && n.stackMode !== "NONE") {
-    out.autoLayout = { mode: n.stackMode, align: n.stackAlign, counterAlign: n.stackCounterAlign,
-      justify: n.stackJustify, padding: n.stackPadding, itemSpacing: num(n.stackItemSpacing) };
+    const lay = { mode: n.stackMode };
+    // 真实字段名是 stackPrimaryAlignItems / stackCounterAlignItems（不是 stackAlign）
+    const align = n.stackPrimaryAlignItems || n.stackAlign;
+    const counter = n.stackCounterAlignItems || n.stackCounterAlign;
+    if (align) lay.align = align;
+    if (counter) lay.counterAlign = counter;
+    if (n.stackJustify) lay.justify = n.stackJustify;
+    if (n.stackItemSpacing != null) lay.itemSpacing = num(n.stackItemSpacing);
+    // 内边距：优先四边，其次水平/垂直，最后标量
+    const pad = {};
+    if (n.stackPaddingTop != null) pad.top = num(n.stackPaddingTop);
+    if (n.stackPaddingRight != null) pad.right = num(n.stackPaddingRight);
+    if (n.stackPaddingBottom != null) pad.bottom = num(n.stackPaddingBottom);
+    if (n.stackPaddingLeft != null) pad.left = num(n.stackPaddingLeft);
+    if (!Object.keys(pad).length) {
+      if (n.stackHorizontalPadding != null) pad.horizontal = num(n.stackHorizontalPadding);
+      if (n.stackVerticalPadding != null) pad.vertical = num(n.stackVerticalPadding);
+    }
+    if (Object.keys(pad).length) lay.padding = pad;
+    else if (n.stackPadding != null) lay.padding = num(n.stackPadding);
+    // 响应式意图：HUG / FILL / FIXED
+    if (n.stackPrimarySizing) lay.primarySizing = n.stackPrimarySizing;
+    if (n.stackCounterSizing) lay.counterSizing = n.stackCounterSizing;
+    if (n.stackWrap && n.stackWrap !== "NO_WRAP") lay.wrap = n.stackWrap;
+    if (n.minSize) lay.minSize = { x: num(n.minSize.x), y: num(n.minSize.y) };
+    out.autoLayout = lay;
   }
+
+  /* ---- 组件：本格式无 componentId，INSTANCE 用 symbolData.symbolID 指向 SYMBOL 节点 ---- */
+  const compId = refKey(n.componentId) || refKey(n.symbolData && n.symbolData.symbolID);
+  if (compId) out.componentId = compId;
+  if (n.componentSetId) out.componentSetId = refKey(n.componentSetId);
+  if (n.componentKey) out.componentKey = n.componentKey;
+  if (n.description) out.description = n.description;
+  if (n.symbolDescription && n.symbolDescription !== n.description) out.componentDescription = n.symbolDescription;
+
+  /* ---- 实例文本覆写：可见文案大量存在这里（不是 TEXT 节点的 characters） ---- */
+  if (n.symbolData && Array.isArray(n.symbolData.symbolOverrides)) {
+    const ov = [];
+    for (const o of n.symbolData.symbolOverrides) {
+      const t = o && o.textData && o.textData.characters;
+      if (!t) continue;
+      const path = o.guidPath && o.guidPath.guids ? o.guidPath.guids.map(refKey).join(">") : null;
+      ov.push(path ? { path, text: String(t).slice(0, 200) } : { text: String(t).slice(0, 200) });
+      if (ov.length >= 12) break;
+    }
+    if (ov.length) out.overrides = ov;
+  }
+
+  /* ---- 描边细节 ---- */
+  if (n.strokeAlign) out.strokeAlign = n.strokeAlign;
+  if (n.strokeJoin) out.strokeJoin = n.strokeJoin;
+  if (n.strokeCap) out.strokeCap = n.strokeCap;
+  if (n.dashPattern && n.dashPattern.length) out.dashPattern = n.dashPattern.map(num);
+  if (n.borderTopWeight != null || n.borderRightWeight != null || n.borderBottomWeight != null || n.borderLeftWeight != null) {
+    out.strokeWeights = [n.borderTopWeight, n.borderRightWeight, n.borderBottomWeight, n.borderLeftWeight].map(num);
+  }
+
+  /* ---- 文本排版 ---- */
+  if (n.lineHeight) out.lineHeight = typeof n.lineHeight === "object" ? n.lineHeight : num(n.lineHeight);
+  if (n.letterSpacing) out.letterSpacing = typeof n.letterSpacing === "object" ? n.letterSpacing : num(n.letterSpacing);
+  if (n.textAlignHorizontal) out.textAlign = { h: n.textAlignHorizontal, v: n.textAlignVertical || null };
+  if (n.textAutoResize) out.textAutoResize = n.textAutoResize;
+
+  /* ---- 原型交互（官方 get_motion_context 的轻量替代） ---- */
+  if (n.prototypeInteractions && n.prototypeInteractions.length) {
+    out.interactions = n.prototypeInteractions.map((it) => ({
+      event: it.event && it.event.interactionType,
+      actions: (it.actions || []).map((a) => ({
+        target: refKey(a.transitionNodeID),
+        connection: a.connectionType,
+        navigation: a.navigationType,
+      })),
+    }));
+  }
+
+  /* ---- 代码语法标注（Figma Dev Mode 的 Code Syntax） ---- */
+  if (n.codeSyntax) out.codeSyntax = n.codeSyntax;
+  if (n.targetAspectRatio != null) out.targetAspectRatio = num(n.targetAspectRatio);
+
+  /* ---- 四边独立圆角（四个值不同才有意义） ---- */
+  if (!out.cornerRadii) {
+    const r = [n.rectangleTopLeftCornerRadius, n.rectangleTopRightCornerRadius,
+      n.rectangleBottomRightCornerRadius, n.rectangleBottomLeftCornerRadius];
+    if (r.every((v) => v != null)) {
+      const radii = r.map(num);
+      if (radii.some((v) => v !== radii[0])) out.cornerRadii = radii;
+    }
+  }
+
+  /* ---- 样式引用 ---- */
+  const styles = {};
+  if (n.styleIdForFill) { const s = refKey(n.styleIdForFill); if (s) styles.fill = s; }
+  if (n.styleIdForStrokeFill) { const s = refKey(n.styleIdForStrokeFill); if (s) styles.stroke = s; }
+  if (n.styleIdForText) { const s = refKey(n.styleIdForText); if (s) styles.text = s; }
+  if (n.styleIdForEffect) { const s = refKey(n.styleIdForEffect); if (s) styles.effect = s; }
+  if (Object.keys(styles).length) out.styles = styles;
+
+  /* ---- 变量：variableResolvedType + variableDataValues.entries[] ---- */
+  if (n.variableResolvedType) {
+    const values = {};
+    for (const e of (n.variableDataValues && n.variableDataValues.entries) || []) {
+      const mode = refKey(e.modeID);
+      const val = e.variableData && e.variableData.value;
+      if (mode && val) values[mode] = val;
+    }
+    out.variable = { type: n.variableResolvedType, values };
+  }
+  if (n.variableSetID) out.variableSet = refKey(n.variableSetID);
+  if (n.variableSetModes) {
+    out.variableModes = n.variableSetModes.map((m) => ({ id: refKey(m.id), name: m.name }));
+  }
+
+  /* ---- 布局栅格 ---- */
+  if (n.layoutGrids && n.layoutGrids.length) out.layoutGrids = n.layoutGrids;
+
+  /* ---- 未如字段兜底（symbolData、componentProperties 等） ---- */
+  const extra = extraOf(n);
+  if (extra) out.extra = extra;
+
   return out;
 }
 
@@ -811,7 +1118,9 @@ document.addEventListener("paste", async (e) => {
   }
 
   // 弹窗打开时不触发解析（避免误清空当前结果）
-  const modalOpen = !$("modal-save").classList.contains("hidden") || !$("modal-detail").classList.contains("hidden");
+  const modalOpen = !$("modal-save").classList.contains("hidden") ||
+    !$("modal-detail").classList.contains("hidden") ||
+    !$("modal-image").classList.contains("hidden");
   if (modalOpen) return;
 
   e.preventDefault();
@@ -915,12 +1224,14 @@ document.addEventListener("paste", async (e) => {
       const schema = KiwiSchema.decodeBinarySchema(state.inflate[0].raw);
       const compiled = KiwiSchema.compileSchema(schema);
       const message = compiled.decodeMessage(state.inflate[1].raw);
+      const assetCtx = await buildAssetContext(message);
+      state.assetCtx = assetCtx;
       const hist = {};
       const nodes = [];
       for (const n of message.nodeChanges) {
         if (n.phase === "REMOVED") continue;
         hist[n.type] = (hist[n.type] || 0) + 1;
-        nodes.push(projectNode(n));
+        nodes.push(projectNode(n, assetCtx));
       }
       state.kiwi = {
         defs: schema.definitions.length,
@@ -1206,7 +1517,7 @@ function resetState() {
     pasted: false, flavors: [], typesNote: "", plain: "", html: "",
     markers: [], hasImage: false, imageUrl: "", imageBlob: null,
     metaObj: null, archive: null, figB64: null, inflate: null, schemaStrings: [],
-    kiwi: null, tree: null, saved: null, unsaved: false, steps: {},
+    kiwi: null, tree: null, assetCtx: null, saved: null, unsaved: false, steps: {},
   });
   if (state.imageUrl) { try { URL.revokeObjectURL(state.imageUrl); } catch {} }
   $("panel-image").classList.add("hidden");
@@ -1312,6 +1623,43 @@ function openSaveModal() {
   $("save-name").select();
 }
 
+// 把节点引用到的图片资源（blob 里的原图）打包成 base64，随页面一起上传
+async function collectAssets(ctx) {
+  if (!ctx || !ctx.needed || !ctx.needed.size) return [];
+  const out = [];
+  let total = 0;
+  const MAX_TOTAL = 8 * 1024 * 1024;
+  for (const [ref, hex] of ctx.needed) {
+    const idx = ctx.byHash.get(hex);
+    if (idx === undefined) continue;
+    const u8 = bytesOf(ctx.blobs[idx]);
+    if (!u8 || !u8.length) continue;
+    if (total + u8.length > MAX_TOTAL) break;
+    out.push({ ref, mime: sniffMime(u8), data: await blobToBase64(new Blob([u8])) });
+    total += u8.length;
+  }
+  return out;
+}
+
+// 从 figmeta.imageHashes 里拿每张图的签名 URL（比 blob SHA-1 匹配可靠得多）
+function collectAssetUrls() {
+  const out = [];
+  const hashes = (state.metaObj && state.metaObj.imageHashes) || {};
+  const keys = Object.keys(hashes);
+  if (!keys.length || !state.kiwi) return out;
+  const refs = new Set();
+  for (const n of state.kiwi.nodes) {
+    for (const f of n.fills || []) {
+      if (f && f.type === "IMAGE" && f.image && f.image.ref) refs.add(f.image.ref);
+    }
+  }
+  for (const ref of refs) {
+    const hit = keys.find((h) => h.startsWith(ref));
+    if (hit) out.push({ ref, url: hashes[hit] });
+  }
+  return out;
+}
+
 async function doSave() {
   const name = $("save-name").value.trim();
   if (!name) { $("save-name").focus(); return; }
@@ -1324,12 +1672,15 @@ async function doSave() {
   const note = $("save-note").value.trim();
   $("save-ok").disabled = true;
   try {
-    const image = state.imageBlob ? await blobToBase64(state.imageBlob) : null;
+    const shot = state.imageBlob ? await downscaleImage(state.imageBlob, 2560) : null;
+    const image = shot ? await blobToBase64(shot) : null;
+    const assets = await collectAssets(state.assetCtx);
+    const assetUrls = collectAssetUrls();
     const res = await fetch("/api/pastes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name, note, image,
+        name, note, image, assets, assetUrls,
         meta: state.metaObj,
         savedAt: new Date().toISOString(),
         nodes: state.kiwi.nodes,
@@ -1379,11 +1730,59 @@ function renderList() {
   for (const e of listCache) grid.appendChild(cardEl(e));
 }
 
+function copyText(text, okMsg) {
+  navigator.clipboard.writeText(text)
+    .then(() => toast(okMsg || "已复制"))
+    .catch(() => toast("复制失败，请手动选择文本"));
+}
+
 function copyCard(e) {
   const text = e.name + " · " + e.id;
-  navigator.clipboard.writeText(text)
-    .then(() => toast("已复制：" + text))
-    .catch(() => toast("复制失败，请手动选择文本"));
+  copyText(text, "已复制：" + text);
+}
+
+function copyCardId(e) {
+  copyText(e.id, "已复制 id：" + e.id);
+}
+
+// 标准还原提示词：面向真实业务项目的落地实现（不是独立 demo）
+function restorePrompt(e) {
+  const id = e.id;
+  const lines = [
+    `用 figma-clipboard MCP 把 Figma 设计实现在当前项目里。`,
+    "",
+    `pasteId = "${id}"`,
+    `设计来源：Figma 页面「${e.name}」`,
+    e.note ? `页面简介：${e.note}` : null,
+    "",
+    "【阶段 1：先摸清项目】",
+    "读 package.json 和现有页面，确认框架 / UI 库 / 样式方案 / i18n / 目录约定；不确定就问我，不要猜，也不要为此引入新依赖。",
+    "",
+    "【阶段 2：取设计数据，按序】",
+    `1. figma_get_screenshot({ pasteId: "${id}" }) —— 先看图，视觉基线`,
+    `2. figma_get_tree({ pasteId: "${id}", maxDepth: 3 }) 找到要实现的帧，再用 figma_get_subtree 只拉那棵子树（不要拉全页）`,
+    "3. 带 componentId 的 INSTANCE → figma_expand_instances({ recursive: true })，返回 truncated:true 就继续调，直到拿全",
+    "4. figma_list_assets 列全页图片 → 按 ref 调 figma_get_assets 取像素。插画/缩略图必须用真实图，存进项目静态资源目录，不要手绘或色块代替。图片按 fills[].scaleMode（FILL / FIT / CROP）与 fills[].transform 定位，容器用 overflow:hidden + 圆角裁切，不要直接拉伸原图",
+    "5. TEXT 取 text / fontSize / fontName / lineHeight / letterSpacing / textAlign；节点无 text 时看父实例的 overrides[].text，再退回图层名",
+    "6. autoLayout 的 mode / align / counterAlign / padding / itemSpacing / primarySizing 就是 flex 参数；codeSyntax 和 styles 里的 token 优先",
+    "",
+    "【阶段 3：先出映射表，再写代码】",
+    "先输出一张表：设计节点 → 项目组件 / DOM 结构 → 样式来源。确认后再改代码。",
+    "- 组件库里能找到的一律复用，不新写；确实要新写的，放对目录并跟现有命名风格一致",
+    "- 颜色 / 字号 / 圆角 / 间距优先落到项目 token（codeSyntax 给的 var(--xxx) 就是答案）；实在没 token 才用绝对值，并注明「无 token」",
+    "- 文案按项目 i18n 约定处理，不要散落硬编码中文",
+    "- 交互（hover / disabled / 选中）能从 interactions 或组件变体拿到的，按组件库既有 API 用",
+    "",
+    "【阶段 4：验收】",
+    "- 与第 1 步截图逐区域对比（头部 / 内容卡 / 列表网格 / 留白），列出偏差和原因",
+    "- 自查：无新增依赖、无魔法数、无重复造已有组件、根节点尺寸与设计帧一致",
+    "- 最后给出：改动文件清单、复用到的组件、新增的组件、未实现项（区分「数据拿不到」和「实现取舍」）",
+    "",
+    "【边界】",
+    "- 不调用 figma_get_raw（全量 JSON 会爆上下文）",
+    "- 不为还原而破坏项目既有规范；冲突时以项目规范为准并说明差异",
+  ].filter((l) => l !== null);
+  return lines.join("\n");
 }
 
 function cardEl(e) {
@@ -1391,10 +1790,12 @@ function cardEl(e) {
   card.className = "card";
   card.innerHTML =
     '<div class="card-head"><span class="card-name" contenteditable="true" spellcheck="false">' + escapeHtml(e.name) + "</span>" +
-    '<button class="ghost" data-role="copy" title="复制「名称 · id」">复制</button></div>' +
+    '<button class="ghost" data-role="copy" title="复制「名称 · id」">复制</button>' +
+    '<button class="ghost" data-role="copy-id" title="只复制 id">ID</button></div>' +
     '<div class="card-id">' + escapeHtml(e.id) + "</div>" +
     (e.hasImage
-      ? '<img class="card-thumb" loading="lazy" src="/api/pastes/' + encodeURIComponent(e.id) + '/image" alt="' + escapeHtml(e.name) + '">'
+      ? '<div class="card-thumb-wrap"><img class="card-thumb" decoding="async" src="/api/pastes/' + encodeURIComponent(e.id) + '/image" alt="' + escapeHtml(e.name) + '">' +
+        '<button class="thumb-zoom" data-role="zoom" title="全屏查看">⤢</button></div>'
       : '<div class="card-thumb placeholder">无截图</div>') +
     '<div class="card-note" contenteditable="true" spellcheck="false" data-placeholder="添加简介…">' + escapeHtml(e.note || "") + "</div>" +
     '<div class="card-meta">' + e.nodeCount + " 节点 · " + fmtTime(e.savedAt) + "</div>" +
@@ -1435,6 +1836,12 @@ function cardEl(e) {
   });
 
   card.querySelector('[data-role="copy"]').addEventListener("click", (ev) => { ev.stopPropagation(); copyCard(e); });
+  card.querySelector('[data-role="copy-id"]').addEventListener("click", (ev) => { ev.stopPropagation(); copyCardId(e); });
+  const zoomBtn = card.querySelector('[data-role="zoom"]');
+  if (zoomBtn) zoomBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    openImageFull("/api/pastes/" + encodeURIComponent(e.id) + "/image", e.name);
+  });
   card.querySelector('[data-role="detail"]').addEventListener("click", (ev) => { ev.stopPropagation(); openDetail(e.id); });
   card.querySelector('[data-role="del"]').addEventListener("click", async (ev) => {
     ev.stopPropagation();
@@ -1443,9 +1850,10 @@ function cardEl(e) {
     await loadList();
   });
   // 卡片主体点击 = 复制「名称 · id」，便于直接粘给 AI
+  // 卡片主体点击 = 复制标准还原提示词，直接粘给 AI
   card.addEventListener("click", (ev) => {
     if (ev.target.closest('[contenteditable="true"], button')) return;
-    copyCard(e);
+    copyText(restorePrompt(e), "已复制还原提示词（" + e.id + "）");
   });
   return card;
 }
@@ -1490,6 +1898,8 @@ async function openDetail(id) {
     const shotBox = document.createElement("div");
     shotBox.innerHTML = '<h4>截图</h4><img class="detail-shot" src="/api/pastes/' +
       encodeURIComponent(data.id) + '/image" alt="' + escapeHtml(data.name) + '">';
+    const shotImg = shotBox.querySelector("img");
+    shotImg.addEventListener("click", () => openImageFull(shotImg.src, shotImg.alt));
     body.appendChild(shotBox);
   }
 
@@ -1537,6 +1947,30 @@ $("save-cancel").addEventListener("click", () => $("modal-save").classList.add("
 $("save-ok").addEventListener("click", doSave);
 $("save-name").addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); doSave(); } });
 $("detail-close").addEventListener("click", () => $("modal-detail").classList.add("hidden"));
+
+/* ---------- 全屏看图 ---------- */
+
+function openImageFull(src, alt) {
+  $("modal-image-img").src = src;
+  $("modal-image-img").alt = alt || "页面截图";
+  $("modal-image").classList.remove("hidden");
+}
+
+function closeImageFull() {
+  $("modal-image").classList.add("hidden");
+  $("modal-image-img").removeAttribute("src");
+}
+
+$("modal-image").addEventListener("click", (ev) => {
+  if (ev.target === $("modal-image-img")) return; // 点图本身不关（方便细看）
+  closeImageFull();
+});
+document.addEventListener("keydown", (ev) => {
+  if (ev.key !== "Escape") return;
+  if (!$("modal-image").classList.contains("hidden")) { closeImageFull(); return; }
+  if (!$("modal-detail").classList.contains("hidden")) { $("modal-detail").classList.add("hidden"); return; }
+  if (!$("modal-save").classList.contains("hidden")) $("modal-save").classList.add("hidden");
+});
 for (const id of ["modal-save", "modal-detail"]) {
   $(id).addEventListener("mousedown", (ev) => { if (ev.target === $(id)) $(id).classList.add("hidden"); });
 }
