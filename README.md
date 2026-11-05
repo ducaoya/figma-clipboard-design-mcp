@@ -3,7 +3,7 @@
 把 Figma 剪贴板里的完整设计数据（场景图）变成 **AI 可读的 MCP 服务**。零依赖，纯 Node。
 
 ```text
-Figma 复制(Ctrl+C) → 网页粘贴(Ctrl+V) → 浏览器解码 → 本地缓存 → AI 通过 MCP 读取
+Figma 复制(Ctrl+C) → 网页粘贴(Ctrl+V) → 浏览器解码 → 保存为页面 → AI 通过 MCP 按 id 读取
 ```
 
 ## 为什么需要它
@@ -29,14 +29,16 @@ npm install -g figma-clipboard-design-mcp
 # 1. 后台启动（默认 127.0.0.1:8388）
 fcdm start
 
-# 2. 打开网页，从 Figma 复制图层后按 Ctrl+V
+# 2. 打开网页，从 Figma 复制图层后按 Ctrl+V，解析完成后填名称点「保存为页面」
 #    → http://127.0.0.1:8388/
 
 # 3. AI 客户端连接 MCP
 #    → http://127.0.0.1:8388/mcp   (Streamable HTTP)
 ```
 
-粘贴后网页自动完成全部解码（base64 → 解压 → Kiwi 反序列化），数据进入本地缓存，AI 即可通过 MCP 读取。
+粘贴后网页自动完成全部解码（base64 → 解压 → Kiwi 反序列化），确认无误后填入名称保存；每次粘贴都是一份独立页面，互不覆盖。
+
+> 截图是**另一份数据**：Figma 的 `Ctrl+C` 只复制设计数据，需要截图时在 Figma 里再按一次 `Ctrl+Shift+C`（右键 → Copy as → Copy as PNG），然后回到网页再 `Ctrl+V` 一次；这张图会自动附加到当前解析结果上，不重新解码。
 
 ## CLI
 
@@ -68,34 +70,42 @@ Claude Code / Cursor 等支持 Streamable HTTP 的客户端：
 
 | 工具 | 说明 |
 |---|---|
-| `figma_get_meta` | 元信息（fileKey、pasteID、节点数、保存时间） |
-| `figma_get_tree` | 图层树（可控制深度） |
-| `figma_search_nodes` | 按名称/类型搜索节点 |
-| `figma_get_node` | 按 guid 取单个节点完整信息（位置/填充/描边/文本/约束） |
-| `figma_get_stats` | 类型分布直方图等统计 |
-| `figma_get_raw` | 全量原始 JSON（可截断） |
+| `figma_list_pastes` | 列出全部页面（id / 名称 / 简介 / 节点数）。**唯一不需要 pasteId 的工具** |
+| `figma_get_meta` | 指定页面的元信息（id、名称、简介、fileKey、节点数） |
+| `figma_get_tree` | 指定页面的图层树（可控制深度） |
+| `figma_get_screenshot` | 指定页面的截图（Figma 复制时附带的 PNG 快照，MCP image 内容块） |
+| `figma_search_nodes` | 在指定页面内按名称/类型搜索节点 |
+| `figma_get_node` | 在指定页面内按 guid 取单个节点完整信息（位置/填充/描边/文本/约束） |
+| `figma_get_stats` | 指定页面的类型分布直方图等统计 |
+| `figma_get_raw` | 指定页面的全量原始 JSON（可截断） |
 
-推荐 AI 使用顺序：`figma_get_meta` 确认有数据 → `figma_get_tree` 了解结构 → `figma_search_nodes` 定位目标 → `figma_get_node` 取细节。
+除 `figma_list_pastes` 外，所有工具都必须传 `pasteId` —— 页面数据不存在「默认页面」，只能按 id 取。id 缺失时会返回当前可用页面列表，便于 AI 自我纠正。
+
+推荐 AI 使用顺序：`figma_list_pastes` → 按名称/简介的语义匹配目标 id → 带 `pasteId` 调 `figma_get_screenshot`（有截图时先看视觉）/ `figma_get_tree` / `figma_search_nodes` / `figma_get_node`。
 
 ## 网页功能
 
-粘贴后浏览器内完成全部解码（服务端零解码逻辑），分 Tab 展示：
+粘贴后浏览器内完成全量解码（服务端零解码逻辑），分三个页面：
 
-- **总览**：解析流水线状态
-- **MCP 服务**：端点、客户端配置示例、实时工具列表、缓存状态
-- **Step 1~5**：原始数据 → base64 → 解压 → Kiwi → 节点树（学习/排障用）
+- **新建**：粘贴入口 + 解析流水线 + 结果条（填名称/简介后「保存为页面」）+ Step 1~5 折叠面板（本次粘贴的诊断信息，刷新即失效）
+- **页面列表**：已保存页面的卡片网格（含截图缩略图）。卡片可改名/改简介、一键复制「名称 · id」、查看详情（截图 + 节点数据按需拉取）、删除
+- **MCP 服务**：端点、客户端配置示例、实时工具列表、存储用量
 
 ## 数据流与缓存策略
 
-- 浏览器解码后，把**投影后的节点数组**（guid/parent/type/name/size/transform/fills/strokes/text/约束/自动布局…）POST 到 `/cache`；
-- 服务端**只保留最近一次粘贴**：内存 + 单个磁盘文件覆盖写（位于 `os.tmpdir()/figma-clipboard-mcp/cache/`），新粘贴自动覆盖旧数据，不会膨胀；
-- 矢量二进制 blob 不入缓存（体积从 ~22MB 降到 ~2MB），节点保留 `vectorBlobIndex` 引用。
+- 浏览器解码后，把**投影后的节点数组**（guid/parent/type/name/size/transform/fills/strokes/text/约束/自动布局…）POST 到 `/api/pastes`，**只有点「保存为页面」才写服务端**；
+- 服务端按页面分别存储：`index.json`（索引，列表页与 MCP list 只读它）+ `<id>.json`（单份完整数据，按 id 取详情时才读），位于 `os.tmpdir()/figma-clipboard-mcp/cache/`；
+- 截图单独存为 `pastes/<id>.png`（来自 Figma 复制时附带的 PNG 快照，单张上限 8MB）；不存在时相关工具返回明确错误；
+- 截图来源：Figma 的 `Ctrl+C` 不带位图，需在 Figma 里额外按 `Ctrl+Shift+C` 复制为 PNG，网页里再粘贴一次即自动附加到当前结果；
+- 写入走临时文件 + `rename` 原子替换；最多保留 **10 份 / 100MB**（`FCM_MAX_PASTES`、`FCM_MAX_TOTAL_BYTES` 可调），超出按保存时间淘汰最旧；
+- 矢量二进制 blob 不入存储（体积从 ~22MB 降到 ~2MB），节点保留 `vectorBlobIndex` 引用；
+- 旧版单份缓存（`cache/latest.json`）在启动时自动迁移为一份页面。
 
 ## 安全设计
 
 - 仅监听 `127.0.0.1`，外部机器无法访问；
 - 静态文件只服务**启动时扫描的白名单**，无路径穿越可能；
-- 所有请求体有大小上限；MCP 工具只读内存缓存，**不接触文件系统**；
+- 所有请求体有大小上限；MCP 工具只读本地页面存储，**不接触任意文件路径**；
 - CSP / nosniff 等安全响应头。
 
 ## 技术原理
@@ -120,6 +130,7 @@ text/html → 提取标记 → base64 → fig-kiwi 归档（魔数+版本+分块
 ## 已知边界
 
 - 需要 Figma **view 及以上权限**；
+- 最多保存 10 份页面，超出按时间淘汰最旧的一份；
 - 私有格式无兼容性承诺：归档版本、压缩格式可能随 Figma 升级变化（已做魔数探测 + 多格式降级，但不保证永远可用）；
 - 仅供个人开发使用。
 

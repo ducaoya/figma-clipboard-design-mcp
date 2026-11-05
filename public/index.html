@@ -156,35 +156,144 @@
   .tv-size { color: var(--muted); font-size: 11px; font-family: Consolas, monospace; }
   .tv-count { color: var(--muted); font-size: 10px; border: 1px solid var(--border); border-radius: 8px; padding: 0 6px; }
   .tv-trunc { color: var(--muted); font-style: italic; }
+
+  /* ===== 结果条（解析完成 / 已保存） ===== */
+  .result-bar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin-top: 12px; padding: 10px 14px; background: var(--panel);
+    border: 1px solid var(--border); border-left: 3px solid var(--figdata); border-radius: 8px;
+  }
+  .result-bar .result-info { display: flex; flex-direction: column; gap: 2px; }
+  .result-bar .result-actions { margin-left: auto; display: flex; gap: 8px; }
+  .result-bar.hidden { display: none; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button.primary:hover { filter: brightness(1.12); color: #fff; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.danger:hover { border-color: var(--warn); color: var(--warn); }
+  button.ghost { border: none; background: transparent; color: var(--muted); padding: 2px 6px; }
+
+  /* ===== Step 折叠块 ===== */
+  .step-block { margin-top: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+  .step-block > summary {
+    padding: 9px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+    background: var(--panel-2); border-radius: 10px; display: flex; align-items: baseline; gap: 8px;
+    list-style: none;
+  }
+  .step-block > summary::-webkit-details-marker { display: none; }
+  .step-block > summary::before { content: "▸"; color: var(--muted); font-weight: 400; }
+  .step-block[open] > summary::before { content: "▾"; }
+  .step-block[open] > summary { border-radius: 10px 10px 0 0; border-bottom: 1px solid var(--border); }
+  .step-block > summary .badge {
+    font-size: 10px; font-weight: 400; padding: 0 6px; border-radius: 8px;
+    background: var(--panel); border: 1px solid var(--border); color: var(--muted);
+  }
+  .step-block .panel { margin: 0; border: none; border-top: 1px solid var(--border); border-radius: 0; }
+  .step-block .panel:first-of-type { border-top: none; }
+
+  /* ===== 页面列表 ===== */
+  .list-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; margin-top: 14px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; cursor: copy; transition: border-color .15s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card-head { display: flex; align-items: baseline; gap: 8px; }
+  .card-name { font-weight: 600; font-size: 14px; outline: none; }
+  .card-name:focus, .card-note:focus { background: #1a1a1a; border-radius: 4px; }
+  .card-id { font-family: Consolas, monospace; font-size: 11px; color: var(--accent); margin-top: 2px; }
+  .card-thumb {
+    display: block; width: 100%; height: 132px; object-fit: contain; object-position: center;
+    margin-top: 10px; border-radius: 6px; background: #1a1a1a; border: 1px solid var(--border);
+  }
+  .card-thumb.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 12px;
+  }
+  .detail-shot {
+    display: block; max-width: 100%; max-height: 420px; margin-top: 2px;
+    border-radius: 8px; border: 1px solid var(--border); background: #1a1a1a;
+  }
+  .card-note { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 20px; outline: none; }
+  .card-note:empty::before { content: attr(data-placeholder); color: var(--border); }
+  .card-meta { font-size: 11px; color: var(--muted); margin-top: 10px; }
+  .card-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .empty { color: var(--muted); font-size: 13px; margin-top: 24px; }
+
+  /* ===== 弹窗 ===== */
+  .modal {
+    position: fixed; inset: 0; z-index: 50; padding: 24px;
+    background: rgba(0, 0, 0, .62); display: flex; align-items: center; justify-content: center;
+  }
+  .modal.hidden { display: none; }
+  .modal-box {
+    width: min(430px, 100%); max-height: 90vh; overflow: auto;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px;
+  }
+  .modal-box.wide { width: min(920px, 100%); }
+  .modal-box h3 { margin: 0 0 14px; font-size: 15px; }
+  .modal-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .modal-head h3 { margin-bottom: 12px; }
+  .field { display: block; margin-bottom: 12px; }
+  .field > span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .field em { color: var(--warn); font-style: normal; }
+  .field em.optional { color: var(--muted); }
+  .field input, .field textarea {
+    width: 100%; background: #1a1a1a; border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); padding: 8px 10px; font: inherit; font-size: 13px; resize: vertical;
+  }
+  .field input:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
+  .modal-warn {
+    margin: 2px 0 12px; padding: 8px 10px; font-size: 12px; line-height: 1.7;
+    color: var(--figmeta); background: rgba(245, 166, 35, .1);
+    border: 1px solid rgba(245, 166, 35, .35); border-radius: 6px;
+  }
+  .modal-warn.ok { color: var(--figdata); background: rgba(10, 207, 131, .1); border-color: rgba(10, 207, 131, .35); }
+  .modal-warn kbd { font-size: 11px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .detail-body { display: flex; flex-direction: column; gap: 14px; }
+  .detail-body h4 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .toast {
+    position: fixed; left: 50%; bottom: 36px; transform: translateX(-50%); z-index: 60;
+    background: var(--figdata); color: #04331f; font-weight: 600; font-size: 13px;
+    padding: 8px 18px; border-radius: 20px;
+  }
 </style>
 </head>
 <body>
 
 <header>
   <h1>figma-clipboard-mcp<span class="beta" id="ver-badge">v?</span></h1>
-  <div class="sub">Figma 复制 → 本页 Ctrl+V → 数据自动进入缓存，AI 通过 MCP 读取</div>
+  <div class="sub">Figma 复制 → 新建页 Ctrl+V → 保存为页面 → AI 通过 MCP 按 id 读取</div>
 </header>
 
 <nav class="tabs" id="tabs">
-  <div class="tab active" data-tab="overview">总览<span class="badge" id="badge-overview">—</span></div>
+  <div class="tab active" data-tab="new">新建</div>
+  <div class="tab" data-tab="list">页面列表<span class="badge" id="badge-list">—</span></div>
   <div class="tab" data-tab="mcp">MCP 服务<span class="badge" id="badge-mcp">—</span></div>
-  <div class="tab" data-tab="step1">Step 1 · 原始数据</div>
-  <div class="tab" data-tab="step2">Step 2 · base64<span class="badge" id="badge-step2">—</span></div>
-  <div class="tab" data-tab="step3">Step 3 · 解压<span class="badge" id="badge-step3">—</span></div>
-  <div class="tab" data-tab="step4">Step 4 · Kiwi<span class="badge" id="badge-step4">—</span></div>
-  <div class="tab" data-tab="step5">Step 5 · 节点树<span class="badge" id="badge-step5">—</span></div>
 </nav>
 
 <main>
-  <!-- ============ 总览 ============ -->
-  <section class="tab-page active" id="page-overview">
+  <!-- ============ 新建 ============ -->
+  <section class="tab-page active" id="page-new">
     <div id="paste-zone" contenteditable="true" spellcheck="false">
-      <div>点击此处获得焦点，然后按 <kbd>Ctrl</kbd>+<kbd>V</kbd> 粘贴 Figma 复制的内容</div>
+      <div>点击此处获得焦点，按 <kbd>Ctrl</kbd>+<kbd>V</kbd> 粘贴 Figma 设计；截图需在 Figma 里按 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> 再粘贴一次</div>
     </div>
     <div id="status" class="status hidden"></div>
 
+    <div id="result-bar" class="result-bar hidden">
+      <div class="result-info">
+        <b id="result-title">解析完成</b>
+        <span class="note" id="result-detail"></span>
+      </div>
+      <div class="result-actions">
+        <button id="btn-save" class="primary">保存为页面</button>
+        <button id="btn-goto-list" class="hidden">去页面列表</button>
+      </div>
+    </div>
+
     <div class="panel">
-      <h2>解析流水线<span class="tag">pipeline</span></h2>
+      <h2>解析流水线<span class="tag">仅本次粘贴</span></h2>
       <div class="panel-body">
         <ul class="pipeline" id="pipeline"></ul>
         <div class="note" id="log-endpoint-note">日志上报：未连接</div>
@@ -195,6 +304,132 @@
       <h2>image/png 预览<span class="tag">位图快照</span></h2>
       <div class="panel-body"><img id="image-preview" style="max-width:100%;border-radius:6px" alt="剪贴板图片预览"></div>
     </div>
+
+    <!-- ============ Step 1 ============ -->
+    <details class="step-block">
+      <summary>Step 1 · 原始数据<span class="badge" id="badge-step1">—</span></summary>
+      <div class="panel">
+        <h2>剪贴板格式清单（flavors）<span class="tag">e.clipboardData.items</span></h2>
+        <div class="panel-body">
+          <table>
+            <thead><tr><th>#</th><th>kind</th><th>type（MIME）</th><th>大小</th><th>说明</th></tr></thead>
+            <tbody id="flavors-body"></tbody>
+          </table>
+          <div class="note" id="types-note"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>text/plain<span class="tag">记事本只能看到这一份</span></h2>
+        <div class="panel-body"><pre id="plain-pre"></pre></div>
+      </div>
+      <div class="panel">
+        <h2>text/html 原文<span class="tag">Figma 私有载荷的载体</span>
+          <span class="spacer"></span>
+          <button id="btn-copy">复制原文</button>
+          <button id="btn-download">下载 .html</button>
+        </h2>
+        <div class="panel-body"><pre id="html-pre"></pre></div>
+      </div>
+      <div class="panel">
+        <h2>Figma 私有标记定位<span class="tag">figmeta / figma</span></h2>
+        <div class="panel-body"><div class="marker-cards" id="marker-cards"></div></div>
+      </div>
+    </details>
+
+    <!-- ============ Step 2 ============ -->
+    <details class="step-block">
+      <summary>Step 2 · base64<span class="badge" id="badge-step2">—</span></summary>
+      <div class="panel">
+        <h2>figmeta 解码结果<span class="tag">base64 → UTF-8 JSON</span></h2>
+        <div class="panel-body">
+          <pre id="meta-json-pre"></pre>
+          <div class="note">fileKey = 来源文件；pasteID = 本次复制的递增编号。</div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>figma 二进制结构解析<span class="tag">base64 → fig-kiwi 归档</span></h2>
+        <div class="panel-body">
+          <div class="marker-cards">
+            <div class="marker-card data">
+              <h3>归档头</h3>
+              <div class="stat">base64 长度：<b id="bin-b64-len">—</b> 字符</div>
+              <div class="stat">解码后实际：<b id="bin-bin-len">—</b></div>
+              <div class="stat">魔数：<b class="mono" id="bin-magic">—</b></div>
+              <div class="stat">格式版本（u32 LE）：<b class="mono" id="bin-version">—</b></div>
+            </div>
+          </div>
+          <h3 style="font-size:13px;margin:14px 0 6px;">分块表</h3>
+          <table>
+            <thead><tr><th>#</th><th>偏移</th><th>长度</th><th>前 16 字节（hex）</th><th>推测内容</th></tr></thead>
+            <tbody id="chunks-body"></tbody>
+          </table>
+          <h3 style="font-size:13px;margin:14px 0 6px;">Hex Dump（前 320 字节）</h3>
+          <pre id="hexdump-pre" class="hexdump"></pre>
+          <div class="legend">
+            <span><span class="sw b-magic"></span>魔数 "fig-kiwi"</span>
+            <span><span class="sw b-ver"></span>版本号 u32 LE</span>
+            <span><span class="sw b-len"></span>分块长度前缀 u32 LE</span>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ============ Step 3 ============ -->
+    <details class="step-block">
+      <summary>Step 3 · 解压<span class="badge" id="badge-step3">—</span></summary>
+      <div class="panel">
+        <h2>解压结果<span class="tag">魔数分派 + 全格式降级（zstd / deflate-raw / deflate）</span></h2>
+        <div class="panel-body">
+          <table>
+            <thead><tr><th>#</th><th>推测内容</th><th>压缩后</th><th>解压后</th><th>压缩率</th><th>实际格式</th><th>前 16 字节</th></tr></thead>
+            <tbody id="inflate-body"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>第 0 块 · Kiwi Schema 字符串提取<span class="tag">格式定义的"词汇表"</span></h2>
+        <div class="panel-body">
+          <div class="stat" style="font-size:12px;color:var(--muted)">提取到 <b class="mono" id="schema-str-count" style="color:var(--text)">—</b> 个可读字符串（显示前 300 个）</div>
+          <div id="schema-strings" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>第 1 块 · 节点数据预览<span class="tag">Kiwi 编码的 Message</span></h2>
+        <div class="panel-body"><pre id="data-head-pre" class="hexdump"></pre></div>
+      </div>
+    </details>
+
+    <!-- ============ Step 4 ============ -->
+    <details class="step-block">
+      <summary>Step 4 · Kiwi<span class="badge" id="badge-step4">—</span></summary>
+      <div class="panel">
+        <h2>Kiwi Schema 统计<span class="tag">decodeBinarySchema</span></h2>
+        <div class="panel-body">
+          <div class="marker-cards">
+            <div class="marker-card"><h3>定义总数</h3><div class="stat"><b id="kiwi-defs" style="font-size:20px">—</b></div></div>
+            <div class="marker-card"><h3>节点数</h3><div class="stat"><b id="kiwi-nodes" style="font-size:20px">—</b></div></div>
+            <div class="marker-card"><h3>Blobs</h3><div class="stat"><b id="kiwi-blobs" style="font-size:20px">—</b></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Message 顶层字段<span class="tag">NODE_CHANGES</span></h2>
+        <div class="panel-body"><table><thead><tr><th>字段</th><th>值</th></tr></thead><tbody id="kiwi-fields"></tbody></table></div>
+      </div>
+      <div class="panel">
+        <h2>节点类型分布<span class="tag">nodeChanges[].type</span></h2>
+        <div class="panel-body"><div id="kiwi-typehist" style="display:flex;flex-wrap:wrap;gap:6px"></div></div>
+      </div>
+    </details>
+
+    <!-- ============ Step 5 ============ -->
+    <details class="step-block">
+      <summary>Step 5 · 节点树<span class="badge" id="badge-step5">—</span></summary>
+      <div class="panel">
+        <h2>节点树<span class="tag">由 parentIndex 重建 · <span id="tree-stats">—</span></span></h2>
+        <div class="panel-body"><div id="tree-view" class="tree-view"></div></div>
+      </div>
+    </details>
   </section>
 
   <!-- ============ MCP 服务 ============ -->
@@ -229,146 +464,60 @@
     </div>
 
     <div class="panel">
-      <h2>缓存状态<span class="tag">仅保留最近一次粘贴</span>
+      <h2>页面存储<span class="tag">每次粘贴保存为一个独立页面</span>
         <span class="spacer"></span>
         <button id="btn-refresh-cache">刷新</button>
       </h2>
       <div class="panel-body">
         <div class="marker-cards">
           <div class="marker-card data">
-            <h3>当前缓存</h3>
-            <div class="stat">状态：<b id="cache-has">—</b></div>
-            <div class="stat">节点数：<b id="cache-nodes">—</b></div>
-            <div class="stat">大小：<b id="cache-bytes">—</b></div>
-            <div class="stat">保存时间：<b id="cache-time">—</b></div>
-            <div class="stat">来源 fileKey：<b id="cache-filekey">—</b></div>
+            <h3>存储状态</h3>
+            <div class="stat">页面数：<b id="cache-has">—</b></div>
+            <div class="stat">节点总数：<b id="cache-nodes">—</b></div>
+            <div class="stat">占用空间：<b id="cache-bytes">—</b></div>
+            <div class="stat">最近保存：<b id="cache-time">—</b></div>
+            <div class="stat">本页来源 fileKey：<b id="cache-filekey">—</b></div>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ============ Step 1 ============ -->
-  <section class="tab-page" id="page-step1">
-    <div class="panel">
-      <h2>剪贴板格式清单（flavors）<span class="tag">e.clipboardData.items</span></h2>
-      <div class="panel-body">
-        <table>
-          <thead><tr><th>#</th><th>kind</th><th>type（MIME）</th><th>大小</th><th>说明</th></tr></thead>
-          <tbody id="flavors-body"></tbody>
-        </table>
-        <div class="note" id="types-note"></div>
-      </div>
+  <!-- ============ 页面列表 ============ -->
+  <section class="tab-page" id="page-list">
+    <div class="list-toolbar">
+      <div><b id="list-count">0</b> 个页面 · 共 <span id="list-bytes">0 B</span><span class="note" id="list-limit"></span></div>
+      <button id="btn-new-page" class="primary">+ 新建页面</button>
     </div>
-    <div class="panel">
-      <h2>text/plain<span class="tag">记事本只能看到这一份</span></h2>
-      <div class="panel-body"><pre id="plain-pre"></pre></div>
-    </div>
-    <div class="panel">
-      <h2>text/html 原文<span class="tag">Figma 私有载荷的载体</span>
-        <span class="spacer"></span>
-        <button id="btn-copy">复制原文</button>
-        <button id="btn-download">下载 .html</button>
-      </h2>
-      <div class="panel-body"><pre id="html-pre"></pre></div>
-    </div>
-    <div class="panel">
-      <h2>Figma 私有标记定位<span class="tag">figmeta / figma</span></h2>
-      <div class="panel-body"><div class="marker-cards" id="marker-cards"></div></div>
-    </div>
-  </section>
-
-  <!-- ============ Step 2 ============ -->
-  <section class="tab-page" id="page-step2">
-    <div class="panel">
-      <h2>figmeta 解码结果<span class="tag">base64 → UTF-8 JSON</span></h2>
-      <div class="panel-body">
-        <pre id="meta-json-pre"></pre>
-        <div class="note">fileKey = 来源文件；pasteID = 本次复制的递增编号。</div>
-      </div>
-    </div>
-    <div class="panel">
-      <h2>figma 二进制结构解析<span class="tag">base64 → fig-kiwi 归档</span></h2>
-      <div class="panel-body">
-        <div class="marker-cards">
-          <div class="marker-card data">
-            <h3>归档头</h3>
-            <div class="stat">base64 长度：<b id="bin-b64-len">—</b> 字符</div>
-            <div class="stat">解码后实际：<b id="bin-bin-len">—</b></div>
-            <div class="stat">魔数：<b class="mono" id="bin-magic">—</b></div>
-            <div class="stat">格式版本（u32 LE）：<b class="mono" id="bin-version">—</b></div>
-          </div>
-        </div>
-        <h3 style="font-size:13px;margin:14px 0 6px;">分块表</h3>
-        <table>
-          <thead><tr><th>#</th><th>偏移</th><th>长度</th><th>前 16 字节（hex）</th><th>推测内容</th></tr></thead>
-          <tbody id="chunks-body"></tbody>
-        </table>
-        <h3 style="font-size:13px;margin:14px 0 6px;">Hex Dump（前 320 字节）</h3>
-        <pre id="hexdump-pre" class="hexdump"></pre>
-        <div class="legend">
-          <span><span class="sw b-magic"></span>魔数 "fig-kiwi"</span>
-          <span><span class="sw b-ver"></span>版本号 u32 LE</span>
-          <span><span class="sw b-len"></span>分块长度前缀 u32 LE</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ Step 3 ============ -->
-  <section class="tab-page" id="page-step3">
-    <div class="panel">
-      <h2>解压结果<span class="tag">魔数分派 + 全格式降级（zstd / deflate-raw / deflate）</span></h2>
-      <div class="panel-body">
-        <table>
-          <thead><tr><th>#</th><th>推测内容</th><th>压缩后</th><th>解压后</th><th>压缩率</th><th>实际格式</th><th>前 16 字节</th></tr></thead>
-          <tbody id="inflate-body"></tbody>
-        </table>
-      </div>
-    </div>
-    <div class="panel">
-      <h2>第 0 块 · Kiwi Schema 字符串提取<span class="tag">格式定义的"词汇表"</span></h2>
-      <div class="panel-body">
-        <div class="stat" style="font-size:12px;color:var(--muted)">提取到 <b class="mono" id="schema-str-count" style="color:var(--text)">—</b> 个可读字符串（显示前 300 个）</div>
-        <div id="schema-strings" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
-      </div>
-    </div>
-    <div class="panel">
-      <h2>第 1 块 · 节点数据预览<span class="tag">Kiwi 编码的 Message</span></h2>
-      <div class="panel-body"><pre id="data-head-pre" class="hexdump"></pre></div>
-    </div>
-  </section>
-
-  <!-- ============ Step 4 ============ -->
-  <section class="tab-page" id="page-step4">
-    <div class="panel">
-      <h2>Kiwi Schema 统计<span class="tag">decodeBinarySchema</span></h2>
-      <div class="panel-body">
-        <div class="marker-cards">
-          <div class="marker-card"><h3>定义总数</h3><div class="stat"><b id="kiwi-defs" style="font-size:20px">—</b></div></div>
-          <div class="marker-card"><h3>节点数</h3><div class="stat"><b id="kiwi-nodes" style="font-size:20px">—</b></div></div>
-          <div class="marker-card"><h3>Blobs</h3><div class="stat"><b id="kiwi-blobs" style="font-size:20px">—</b></div></div>
-        </div>
-      </div>
-    </div>
-    <div class="panel">
-      <h2>Message 顶层字段<span class="tag">NODE_CHANGES</span></h2>
-      <div class="panel-body"><table><thead><tr><th>字段</th><th>值</th></tr></thead><tbody id="kiwi-fields"></tbody></table></div>
-    </div>
-    <div class="panel">
-      <h2>节点类型分布<span class="tag">nodeChanges[].type</span></h2>
-      <div class="panel-body"><div id="kiwi-typehist" style="display:flex;flex-wrap:wrap;gap:6px"></div></div>
-    </div>
-  </section>
-
-  <!-- ============ Step 5 ============ -->
-  <section class="tab-page" id="page-step5">
-    <div class="panel">
-      <h2>节点树<span class="tag">由 parentIndex 重建 · <span id="tree-stats">—</span></span></h2>
-      <div class="panel-body"><div id="tree-view" class="tree-view"></div></div>
-    </div>
+    <div class="grid" id="paste-grid"></div>
+    <div class="empty" id="list-empty">还没有页面。到「新建」页粘贴 Figma 数据，点「保存为页面」。</div>
   </section>
 </main>
+
+<!-- ============ 保存弹窗 ============ -->
+<div class="modal hidden" id="modal-save">
+  <div class="modal-box">
+    <h3>保存为页面</h3>
+    <label class="field"><span>名称 <em>必填</em></span><input id="save-name" maxlength="40" placeholder="例如：首页 / 商品详情"></label>
+    <label class="field"><span>简介 <em class="optional">可选</em></span><textarea id="save-note" maxlength="200" rows="3" placeholder="帮 AI 认出这页是什么"></textarea></label>
+    <div class="modal-warn" id="save-hint"></div>
+    <div class="modal-actions">
+      <button id="save-cancel">取消</button>
+      <button id="save-ok" class="primary">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 详情弹窗 ============ -->
+<div class="modal hidden" id="modal-detail">
+  <div class="modal-box wide">
+    <div class="modal-head">
+      <h3 id="detail-title">页面详情</h3>
+      <button id="detail-close">关闭</button>
+    </div>
+    <div class="detail-body" id="detail-body"></div>
+  </div>
+</div>
 
 <script src="/vendor/fzstd.js"></script>
 <script src="/vendor/kiwi.js"></script>
@@ -414,24 +563,47 @@ const Logger = (() => {
   };
 })();
 
-/* ---------- Tab 切换 ---------- */
-let activeTab = "overview";
+/* ---------- 视图切换：新建 / 页面列表 / MCP ---------- */
+let activeTab = "new";
 $("tabs").addEventListener("click", (e) => {
   const tab = e.target.closest(".tab");
   if (!tab) return;
-  activeTab = tab.dataset.tab;
-  document.querySelectorAll("nav.tabs .tab").forEach(t => t.classList.toggle("active", t.dataset.tab === activeTab));
-  document.querySelectorAll(".tab-page").forEach(p => p.classList.remove("active"));
-  $("page-" + activeTab).classList.add("active");
-  renderActiveTab();
+  switchTab(tab.dataset.tab);
 });
+function switchTab(name) {
+  // 离开新建页：本次解析已保存则清空步骤（未保存的保留，避免丢数据）
+  if (name !== "new" && activeTab === "new" && state.saved) clearNewPage();
+  activeTab = name;
+  document.querySelectorAll("nav.tabs .tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+  document.querySelectorAll(".tab-page").forEach(p => p.classList.remove("active"));
+  $("page-" + name).classList.add("active");
+  renderActiveTab();
+}
+
+// 新建页里所有一次性渲染出来的内容
+const NEW_PAGE_CLEAR_IDS = [
+  "pipeline", "flavors-body", "types-note", "plain-pre", "html-pre", "marker-cards",
+  "meta-json-pre", "bin-b64-len", "bin-bin-len", "bin-magic", "bin-version",
+  "chunks-body", "hexdump-pre", "inflate-body", "schema-str-count", "schema-strings",
+  "data-head-pre", "kiwi-defs", "kiwi-nodes", "kiwi-blobs", "kiwi-fields", "kiwi-typehist",
+  "tree-view", "tree-stats",
+];
+const STEP_BADGE_IDS = ["badge-step1", "badge-step2", "badge-step3", "badge-step4", "badge-step5"];
+
+function clearNewPage() {
+  resetState();
+  for (const id of NEW_PAGE_CLEAR_IDS) $(id).innerHTML = "";
+  for (const id of STEP_BADGE_IDS) $(id).textContent = "—";
+}
 function renderActiveTab() {
-  if (!state.pasted) return;
-  const renderers = {
-    overview: renderOverview, mcp: renderMcp, step1: renderStep1,
-    step2: renderStep2, step3: renderStep3, step4: renderStep4, step5: renderStep5,
-  };
-  renderers[activeTab] && renderers[activeTab]();
+  if (activeTab === "list") return renderList();
+  if (activeTab === "mcp") return renderMcp();
+  if (state.pasted) renderNew();
+}
+// 新建页：Step 折叠块一次性渲染（折叠不影响性能）
+function renderNew() {
+  renderOverview(); renderStep1(); renderStep2();
+  renderStep3(); renderStep4(); renderStep5();
 }
 
 /* ---------- 工具函数 ---------- */
@@ -442,6 +614,14 @@ function fmtBytes(n) {
   return (n / 1024 / 1024).toFixed(2) + " MB";
 }
 function byteLength(s) { return new TextEncoder().encode(s).length; }
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
 function b64ToBytes(b64) {
   const bin = atob(b64.replace(/\s+/g, ""));
   const bytes = new Uint8Array(bin.length);
@@ -541,9 +721,9 @@ function extractPrintableStrings(bytes, minLen) {
 /* ---------- 全局状态 ---------- */
 const state = {
   pasted: false, flavors: [], typesNote: "", plain: "", html: "",
-  markers: [], hasImage: false, imageUrl: "",
+  markers: [], hasImage: false, imageUrl: "", imageBlob: null,
   metaObj: null, archive: null, inflate: null, schemaStrings: [],
-  kiwi: null, tree: null, cacheUploaded: false,
+  kiwi: null, tree: null, saved: null, unsaved: false,
   steps: {},
 };
 
@@ -594,15 +774,51 @@ function projectNode(n) {
 /* ---------- 核心：paste 事件 ---------- */
 
 document.addEventListener("paste", async (e) => {
-  e.preventDefault();
+  // 输入框 / 卡片可编辑字段里的粘贴放行给浏览器默认行为（只认粘贴区）
+  const el = e.target instanceof Element ? e.target : null;
+  const inField = el && el.closest('input, textarea, [contenteditable="true"]');
+  if (inField && !el.closest("#paste-zone")) return;
+
   const cd = e.clipboardData;
   if (!cd) return;
 
+  const items = Array.from(cd.items);
+  const imgItem = items.find((it) => it.kind === "file" && it.type.startsWith("image/"));
+  const htmlData = cd.getData("text/html") || "";
+  const isFigmaHtml = htmlData.includes("(figma)");
+
+  /* Figma 的 Ctrl+Shift+C（右键 Copy as PNG）只给图片、不带设计数据：
+     把它附加到当前解析结果上，不重新解码 */
+  if (imgItem && !isFigmaHtml) {
+    e.preventDefault();
+    const f = imgItem.getAsFile();
+    if (!f) return;
+    if (!state.kiwi) {
+      setStatus("no", "还没有解析结果：先按 Ctrl+C 粘贴 Figma 设计，再按 Ctrl+Shift+C 补截图");
+      return;
+    }
+    if (state.imageUrl) { try { URL.revokeObjectURL(state.imageUrl); } catch {} }
+    state.hasImage = true;
+    state.imageBlob = f;
+    state.imageUrl = URL.createObjectURL(f);
+    $("image-preview").src = state.imageUrl;
+    $("panel-image").classList.remove("hidden");
+    setStatus("ok", "✔ 已附加截图（" + fmtBytes(f.size) + "），保存页面时会一起存入");
+    Logger.info("paste", "附加截图", { bytes: f.size });
+    // 保存弹窗开着时直接刷新提示（从「未附加截图」变「已附加截图」）
+    if (!$("modal-save").classList.contains("hidden")) refreshSaveHint();
+    return;
+  }
+
+  // 弹窗打开时不触发解析（避免误清空当前结果）
+  const modalOpen = !$("modal-save").classList.contains("hidden") || !$("modal-detail").classList.contains("hidden");
+  if (modalOpen) return;
+
+  e.preventDefault();
   Logger.info("paste", "收到粘贴事件", { types: Array.from(cd.types) });
   resetState();
 
   /* 捕获 */
-  const items = Array.from(cd.items);
   let hasImage = false;
   items.forEach((item) => {
     let size = "—", desc = "";
@@ -624,7 +840,10 @@ document.addEventListener("paste", async (e) => {
   state.hasImage = hasImage;
   if (hasImage) {
     const f = (items.find(it => it.type.startsWith("image/")) || {}).getAsFile?.();
-    if (f) state.imageUrl = URL.createObjectURL(f);
+    if (f) {
+      state.imageUrl = URL.createObjectURL(f);
+      state.imageBlob = f; // 保存页面时随节点一起上传，供 AI 做视觉参考
+    }
   }
   state.steps["捕获"] = { ok: true, detail: state.flavors.length + " 个格式" };
 
@@ -733,42 +952,25 @@ document.addEventListener("paste", async (e) => {
     }
   }
 
-  /* 上报缓存（服务端只存这一份） */
-  if (state.kiwi && state.kiwi.nodes.length) {
-    try {
-      const res = await fetch("/cache", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          meta: state.metaObj,
-          savedAt: new Date().toISOString(),
-          nodes: state.kiwi.nodes,
-        }),
-      });
-      const r = await res.json();
-      state.cacheUploaded = !!r.ok;
-      state.steps["缓存上报"] = { ok: !!r.ok, detail: r.ok ? r.nodeCount + " 节点已进入 MCP 缓存" : "上报失败" };
-      Logger.info("cache", "缓存上报完成", r);
-    } catch (err) {
-      state.steps["缓存上报"] = { ok: false, detail: err.message };
-      Logger.error("cache", "缓存上报失败", { error: err.message });
-    }
-  }
-
+  /* 解码完成：不自动写服务端，等用户点「保存为页面」 */
   state.pasted = true;
+  state.saved = null;
+  state.unsaved = !!(state.kiwi && state.kiwi.nodes.length);
+
   const status = $("status");
   status.classList.remove("hidden");
-  if (state.cacheUploaded) {
+  if (state.unsaved) {
     status.className = "status ok";
-    status.textContent = "✔ 解析完成，已进入缓存 —— AI 现在可以通过 MCP 读取这份数据了";
+    status.textContent = "✔ 解析完成（" + state.kiwi.nodeCount + " 节点），点上方「保存为页面」存下来";
   } else if (isFigma) {
     status.className = "status no";
-    status.textContent = "⚠ 解析完成但缓存上报失败 —— 查看 Step 面板定位问题";
+    status.textContent = "⚠ 解析完成但没有节点数据 —— 展开下方 Step 面板定位问题";
   } else {
     status.className = "status no";
     status.textContent = "✘ 未检测到 Figma 标记 —— 请从 Figma 画布复制后粘贴";
   }
 
+  updateResultBar();
   renderActiveTab();
   Logger.flush();
 });
@@ -776,7 +978,7 @@ document.addEventListener("paste", async (e) => {
 /* ---------- 渲染：总览 ---------- */
 
 function renderOverview() {
-  const order = ["捕获", "Step1 标记定位", "Step2 base64解码", "Step3 解压", "Step4 Kiwi反序列化", "Step5 节点树", "缓存上报"];
+  const order = ["捕获", "Step1 标记定位", "Step2 base64解码", "Step3 解压", "Step4 Kiwi反序列化", "Step5 节点树"];
   const ul = $("pipeline");
   ul.innerHTML = "";
   for (const name of order) {
@@ -787,8 +989,7 @@ function renderOverview() {
     li.innerHTML = icon + "<span>" + name + "</span>" + detail;
     ul.appendChild(li);
   }
-  $("badge-overview").textContent = state.pasted ? (state.cacheUploaded ? "✓" : "✗") : "—";
-  for (const [id, key] of [["badge-step2", "Step2 base64解码"], ["badge-step3", "Step3 解压"], ["badge-step4", "Step4 Kiwi反序列化"], ["badge-step5", "Step5 节点树"]]) {
+  for (const [id, key] of [["badge-step1", "Step1 标记定位"], ["badge-step2", "Step2 base64解码"], ["badge-step3", "Step3 解压"], ["badge-step4", "Step4 Kiwi反序列化"], ["badge-step5", "Step5 节点树"]]) {
     const st = state.steps[key];
     $(id).textContent = !st ? "—" : st.ok ? "✓" : "✗";
   }
@@ -839,14 +1040,14 @@ async function renderMcp() {
     $("badge-mcp").textContent = "✗";
   }
 
-  // 缓存状态
+  // 页面存储状态
   try {
     const info = await (await fetch("/api/cache-info")).json();
-    $("cache-has").textContent = info.hasData ? "有数据" : "空";
+    $("cache-has").textContent = info.hasData ? info.count + " 份" : "空";
     $("cache-has").className = info.hasData ? "ok-text" : "warn-text";
     $("cache-nodes").textContent = info.nodeCount;
     $("cache-bytes").textContent = fmtBytes(info.bytes);
-    $("cache-time").textContent = info.savedAt || "—";
+    $("cache-time").textContent = fmtTime(info.savedAt);
     $("cache-filekey").textContent = (state.metaObj && state.metaObj.fileKey) || "—";
   } catch {}
 }
@@ -1003,12 +1204,14 @@ function renderStep5() {
 function resetState() {
   Object.assign(state, {
     pasted: false, flavors: [], typesNote: "", plain: "", html: "",
-    markers: [], hasImage: false, imageUrl: "",
+    markers: [], hasImage: false, imageUrl: "", imageBlob: null,
     metaObj: null, archive: null, figB64: null, inflate: null, schemaStrings: [],
-    kiwi: null, tree: null, cacheUploaded: false, steps: {},
+    kiwi: null, tree: null, saved: null, unsaved: false, steps: {},
   });
+  if (state.imageUrl) { try { URL.revokeObjectURL(state.imageUrl); } catch {} }
   $("panel-image").classList.add("hidden");
   $("status").classList.add("hidden");
+  $("result-bar").classList.add("hidden");
 }
 
 /* ---------- 按钮 ---------- */
@@ -1035,6 +1238,317 @@ $("btn-copy-mcp").addEventListener("click", () => {
 });
 $("btn-refresh-cache").addEventListener("click", renderMcp);
 
+/* ---------- 结果条 ---------- */
+
+function setStatus(level, text) {
+  const el = $("status");
+  el.classList.remove("hidden");
+  el.className = "status " + level;
+  el.textContent = text;
+}
+
+function updateResultBar() {
+  const bar = $("result-bar");
+  if (!state.kiwi || !state.kiwi.nodes.length) { bar.classList.add("hidden"); return; }
+  bar.classList.remove("hidden");
+  if (state.saved) {
+    $("result-title").textContent = "已保存「" + state.saved.name + "」";
+    $("result-detail").textContent = state.saved.id + " · " + state.kiwi.nodeCount + " 节点";
+    $("btn-save").classList.add("hidden");
+    $("btn-goto-list").classList.remove("hidden");
+  } else {
+    $("result-title").textContent = "解析完成";
+    $("result-detail").textContent = state.kiwi.nodeCount + " 节点 · 尚未保存";
+    $("btn-save").classList.remove("hidden");
+    $("btn-goto-list").classList.add("hidden");
+  }
+}
+
+/* ---------- Toast ---------- */
+
+let toastTimer = null;
+function toast(msg) {
+  let el = document.querySelector(".toast");
+  if (!el) { el = document.createElement("div"); el.className = "toast"; document.body.appendChild(el); }
+  el.textContent = msg;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.remove(), 1800);
+}
+
+/* ---------- 保存为页面 ---------- */
+
+function defaultPasteName() {
+  const nodes = (state.kiwi && state.kiwi.nodes) || [];
+  const pick = nodes.find((n) => n.type !== "DOCUMENT" && n.type !== "CANVAS" && n.name);
+  return (pick && pick.name) || ("页面 " + (listCache.length + 1));
+}
+
+let saveAllowNoShot = false;
+
+// 保存弹窗里的截图校验提示
+function refreshSaveHint() {
+  const hint = $("save-hint");
+  const ok = $("save-ok");
+  if (state.imageBlob) {
+    saveAllowNoShot = false;
+    hint.className = "modal-warn ok";
+    hint.textContent = "已附加截图（" + fmtBytes(state.imageBlob.size) + "），会随页面一起保存。";
+    ok.textContent = "保存";
+    return;
+  }
+  hint.className = "modal-warn";
+  hint.innerHTML = "未附加截图。导入方式：在 Figma 里选中画板按 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd>" +
+    "（或右键 → Copy as → Copy as PNG），回到本页按 <kbd>Ctrl</kbd>+<kbd>V</kbd> 即可附加，不会重新解析。";
+  ok.textContent = saveAllowNoShot ? "仍然保存（无截图）" : "保存";
+}
+
+function openSaveModal() {
+  saveAllowNoShot = false;
+  $("save-name").value = defaultPasteName();
+  $("save-note").value = "";
+  refreshSaveHint();
+  $("modal-save").classList.remove("hidden");
+  $("save-name").focus();
+  $("save-name").select();
+}
+
+async function doSave() {
+  const name = $("save-name").value.trim();
+  if (!name) { $("save-name").focus(); return; }
+  // 无截图时先提示怎么导入，再点一次才允许继续
+  if (!state.imageBlob && !saveAllowNoShot) {
+    saveAllowNoShot = true;
+    refreshSaveHint();
+    return;
+  }
+  const note = $("save-note").value.trim();
+  $("save-ok").disabled = true;
+  try {
+    const image = state.imageBlob ? await blobToBase64(state.imageBlob) : null;
+    const res = await fetch("/api/pastes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name, note, image,
+        meta: state.metaObj,
+        savedAt: new Date().toISOString(),
+        nodes: state.kiwi.nodes,
+      }),
+    });
+    const r = await res.json();
+    if (!r.ok) throw new Error(r.error || "保存失败");
+    state.saved = { id: r.id, name: r.name };
+    state.unsaved = false;
+    $("modal-save").classList.add("hidden");
+    updateResultBar();
+    await loadList();
+    switchTab("list"); // 保存后直接看页面列表
+    toast("已保存：" + r.name + " · " + r.id);
+    Logger.info("save", "页面已保存", { id: r.id, name: r.name });
+  } catch (e) {
+    alert("保存失败：" + e.message);
+  } finally {
+    $("save-ok").disabled = false;
+  }
+}
+
+/* ---------- 页面列表 ---------- */
+
+let listCache = [];
+
+async function loadList() {
+  try { listCache = await (await fetch("/api/pastes")).json(); }
+  catch { listCache = []; }
+  renderList();
+}
+
+function fmtTime(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const p = (n) => String(n).padStart(2, "0");
+  return (d.getMonth() + 1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+}
+
+function renderList() {
+  $("badge-list").textContent = listCache.length || "—";
+  $("list-count").textContent = listCache.length;
+  $("list-bytes").textContent = fmtBytes(listCache.reduce((s, e) => s + e.bytes, 0));
+  $("list-empty").classList.toggle("hidden", listCache.length > 0);
+  const grid = $("paste-grid");
+  grid.innerHTML = "";
+  for (const e of listCache) grid.appendChild(cardEl(e));
+}
+
+function copyCard(e) {
+  const text = e.name + " · " + e.id;
+  navigator.clipboard.writeText(text)
+    .then(() => toast("已复制：" + text))
+    .catch(() => toast("复制失败，请手动选择文本"));
+}
+
+function cardEl(e) {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML =
+    '<div class="card-head"><span class="card-name" contenteditable="true" spellcheck="false">' + escapeHtml(e.name) + "</span>" +
+    '<button class="ghost" data-role="copy" title="复制「名称 · id」">复制</button></div>' +
+    '<div class="card-id">' + escapeHtml(e.id) + "</div>" +
+    (e.hasImage
+      ? '<img class="card-thumb" loading="lazy" src="/api/pastes/' + encodeURIComponent(e.id) + '/image" alt="' + escapeHtml(e.name) + '">'
+      : '<div class="card-thumb placeholder">无截图</div>') +
+    '<div class="card-note" contenteditable="true" spellcheck="false" data-placeholder="添加简介…">' + escapeHtml(e.note || "") + "</div>" +
+    '<div class="card-meta">' + e.nodeCount + " 节点 · " + fmtTime(e.savedAt) + "</div>" +
+    '<div class="card-actions"><button data-role="detail">详情</button><button data-role="del" class="danger">删除</button></div>';
+
+  const nameEl = card.querySelector(".card-name");
+  const noteEl = card.querySelector(".card-note");
+
+  async function patch(payload) {
+    try {
+      const r = await (await fetch("/api/pastes/" + e.id, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      })).json();
+      if (!r.ok) throw new Error(r.error || "更新失败");
+      e.name = r.name;
+      e.note = r.note;
+      renderList();
+    } catch (err) {
+      toast("更新失败：" + err.message);
+      nameEl.textContent = e.name;
+      noteEl.textContent = e.note || "";
+    }
+  }
+
+  nameEl.addEventListener("blur", () => {
+    const v = nameEl.textContent.trim().slice(0, 40);
+    if (!v) { nameEl.textContent = e.name; return; }
+    if (v === e.name) return;
+    patch({ name: v });
+  });
+  nameEl.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") { ev.preventDefault(); nameEl.blur(); }
+  });
+  noteEl.addEventListener("blur", () => {
+    const v = noteEl.textContent.trim().slice(0, 200);
+    if (v === (e.note || "")) return;
+    patch({ note: v });
+  });
+
+  card.querySelector('[data-role="copy"]').addEventListener("click", (ev) => { ev.stopPropagation(); copyCard(e); });
+  card.querySelector('[data-role="detail"]').addEventListener("click", (ev) => { ev.stopPropagation(); openDetail(e.id); });
+  card.querySelector('[data-role="del"]').addEventListener("click", async (ev) => {
+    ev.stopPropagation();
+    if (!confirm("删除页面「" + e.name + "」？此操作不可恢复。")) return;
+    try { await fetch("/api/pastes/" + e.id, { method: "DELETE" }); toast("已删除：" + e.name); } catch {}
+    await loadList();
+  });
+  // 卡片主体点击 = 复制「名称 · id」，便于直接粘给 AI
+  card.addEventListener("click", (ev) => {
+    if (ev.target.closest('[contenteditable="true"], button')) return;
+    copyCard(e);
+  });
+  return card;
+}
+
+/* ---------- 详情弹窗（按需拉取节点数据） ---------- */
+
+function rowHtml(k, v) {
+  return '<tr><td class="mono">' + escapeHtml(String(k)) + "</td><td>" + escapeHtml(String(v)) + "</td></tr>";
+}
+
+async function openDetail(id) {
+  $("detail-title").textContent = "加载中…";
+  $("detail-body").innerHTML = "";
+  $("modal-detail").classList.remove("hidden");
+
+  let data;
+  try {
+    const res = await fetch("/api/pastes/" + id);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    data = await res.json();
+  } catch (err) {
+    $("detail-title").textContent = "加载失败：" + err.message;
+    return;
+  }
+
+  $("detail-title").textContent = data.name + " · " + data.id;
+  const nodes = data.nodes || [];
+  const body = $("detail-body");
+  body.innerHTML = "";
+
+  // 1. 元信息
+  const metaBox = document.createElement("div");
+  metaBox.innerHTML = "<h4>元信息</h4><table><tbody>" +
+    rowHtml("id", data.id) + rowHtml("名称", data.name) + rowHtml("简介", data.note || "—") +
+    rowHtml("来源 fileKey", (data.meta && data.meta.fileKey) || "—") +
+    rowHtml("保存时间", fmtTime(data.savedAt)) + rowHtml("节点数", data.nodeCount) +
+    rowHtml("截图", data.hasImage ? "有" : "无") +
+    "</tbody></table>";
+  body.appendChild(metaBox);
+
+  if (data.hasImage) {
+    const shotBox = document.createElement("div");
+    shotBox.innerHTML = '<h4>截图</h4><img class="detail-shot" src="/api/pastes/' +
+      encodeURIComponent(data.id) + '/image" alt="' + escapeHtml(data.name) + '">';
+    body.appendChild(shotBox);
+  }
+
+  // 2. 顶层节点（人眼确认「是不是这页」）
+  const frames = nodes.filter((n) => ["FRAME", "SECTION", "SYMBOL", "COMPONENT", "GROUP"].includes(n.type)).slice(0, 20);
+  const frameBox = document.createElement("div");
+  frameBox.innerHTML = "<h4>顶层节点（前 20 个）</h4>" + (frames.length
+    ? "<table><thead><tr><th>类型</th><th>名称</th><th>尺寸</th></tr></thead><tbody>" +
+      frames.map((n) => '<tr><td class="mono">' + escapeHtml(n.type) + "</td><td>" + escapeHtml(n.name || "(未命名)") +
+        '</td><td class="mono">' + (n.size ? Math.round(n.size.x) + "×" + Math.round(n.size.y) : "—") + "</td></tr>").join("") +
+      "</tbody></table>"
+    : '<div class="note">无</div>');
+  body.appendChild(frameBox);
+
+  // 3. 文本内容
+  const texts = nodes.filter((n) => n.type === "TEXT" && n.text).slice(0, 20);
+  const textBox = document.createElement("div");
+  textBox.innerHTML = "<h4>文本内容（前 20 条）</h4>" +
+    (texts.length ? "<pre>" + texts.map((n) => escapeHtml(n.text)).join("\n") + "</pre>" : '<div class="note">无</div>');
+  body.appendChild(textBox);
+
+  // 4. 节点树（前 3 层）
+  const byGuid = new Map(nodes.map((n) => [n.guid, n]));
+  const children = new Map();
+  const roots = [];
+  for (const n of nodes) {
+    if (n.parent && byGuid.has(n.parent)) {
+      if (!children.has(n.parent)) children.set(n.parent, []);
+      children.get(n.parent).push(n);
+    } else roots.push(n);
+  }
+  const treeOut = [];
+  for (const r of roots) treeNodeHtml(r, children, 0, treeOut, 3);
+  const treeBox = document.createElement("div");
+  treeBox.innerHTML = '<h4>节点树（前 3 层）</h4><div class="tree-view">' + treeOut.join("") + "</div>";
+  body.appendChild(treeBox);
+}
+
+/* ---------- 弹窗 / 按钮绑定 ---------- */
+
+$("btn-save").addEventListener("click", openSaveModal);
+$("btn-goto-list").addEventListener("click", () => switchTab("list"));
+$("btn-new-page").addEventListener("click", () => { switchTab("new"); pasteZone.focus(); });
+$("save-cancel").addEventListener("click", () => $("modal-save").classList.add("hidden"));
+$("save-ok").addEventListener("click", doSave);
+$("save-name").addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); doSave(); } });
+$("detail-close").addEventListener("click", () => $("modal-detail").classList.add("hidden"));
+for (const id of ["modal-save", "modal-detail"]) {
+  $(id).addEventListener("mousedown", (ev) => { if (ev.target === $(id)) $(id).classList.add("hidden"); });
+}
+
+// 解析完成但未保存时，离开页面给出提醒
+window.addEventListener("beforeunload", (ev) => {
+  if (state.unsaved && state.kiwi && state.kiwi.nodes.length) {
+    ev.preventDefault();
+    ev.returnValue = "";
+  }
+});
+
 /* ---------- 启动 ---------- */
 
 window.addEventListener("load", async () => {
@@ -1043,10 +1557,12 @@ window.addEventListener("load", async () => {
   try {
     const health = await (await fetch("/api/health")).json();
     $("ver-badge").textContent = "v" + health.version;
-    Logger.info("page", "页面加载", { version: health.version, cache: health.cache });
+    Logger.info("page", "页面加载", { version: health.version, pastes: health.cache });
   } catch {
     Logger.warn("page", "服务健康检查失败");
   }
+  // 页面列表（卡片形式展示已保存的全部页面）
+  await loadList();
 });
 </script>
 </body>

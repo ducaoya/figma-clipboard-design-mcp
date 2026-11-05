@@ -159,9 +159,9 @@ async function cmdStatus() {
     const res = await fetch(`http://${state.host}:${state.port}/api/cache-info`);
     const info = await res.json();
     if (info.hasData) {
-      console.log(`  缓存:   有数据 · ${info.nodeCount} 节点 · ${info.bytes} 字节 · ${info.savedAt}`);
+      console.log(`  页面:   ${info.count} 份 · ${info.nodeCount} 节点 · ${info.bytes} 字节 · 最近 ${info.savedAt}`);
     } else {
-      console.log("  缓存:   空（打开网页粘贴后即有）");
+      console.log("  页面:   空（打开网页粘贴并保存后即有）");
     }
   } catch {}
 }
