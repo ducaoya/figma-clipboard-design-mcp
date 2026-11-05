@@ -1,6 +1,6 @@
 {
   "name": "figma-clipboard-design-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Turns Figma clipboard data (layers, layout, fills, text, vector paths) into a local MCP server for AI: view-seat friendly, zero API quota, zero deps.",
   "license": "MIT",
   "type": "module",
