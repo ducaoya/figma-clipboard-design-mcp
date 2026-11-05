@@ -17,6 +17,21 @@
     font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
     font-size: 14px; line-height: 1.6;
   }
+
+  /* ===== 滚动条：跟暗色面板统一，不用系统原生样式 ===== */
+  * { scrollbar-width: thin; scrollbar-color: #4a4a4a transparent; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: #454545; border-radius: 8px;
+    border: 2px solid transparent; background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: #5e5e5e; background-clip: content-box; }
+  ::-webkit-scrollbar-thumb:active { background: var(--accent); background-clip: content-box; }
+  ::-webkit-scrollbar-corner { background: transparent; }
+  /* 弹窗内部：轨道压暗一点，避免贴在白色内容边上显得脏 */
+  .modal-box, .tree-view, pre, .hexdump { scrollbar-color: #4f4f4f transparent; }
+  .modal-box::-webkit-scrollbar-track, .tree-view::-webkit-scrollbar-track { background: rgba(0, 0, 0, .18); }
   header { padding: 16px 24px 0; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   h1 { font-size: 19px; margin: 0; }
   h1 .beta { color: var(--accent); font-size: 12px; vertical-align: middle; margin-left: 8px; }
